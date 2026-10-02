@@ -357,6 +357,28 @@ class Iap2UsbSession internal constructor(
     fun read(timeoutMillis: Long): ByteArray? = synchronized(readLock) {
         checkOpen()
         require(timeoutMillis > 0) { "timeoutMillis must be positive" }
+        // UsbRequest.queue(ByteBuffer) and requestWait(long) were both added in API 26.
+        // Android 7.1 has only the legacy queue(buffer, length) plus an indefinitely blocking
+        // requestWait(), which cannot implement this method's timeout contract safely. A timed
+        // bulk transfer is adequate here: USBMUX already reassembles frames across short reads.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            val bytes = ByteArray(LEGACY_USBMUX_READ_CHUNK_BYTES)
+            val transferred = try {
+                connection.bulkTransfer(
+                    inEndpoint,
+                    bytes,
+                    bytes.size,
+                    timeoutMillis.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
+                )
+            } catch (error: RuntimeException) {
+                throw failSession("USBMUX legacy read failed", error)
+            }
+            return@synchronized when {
+                transferred < 0 -> null
+                transferred == 0 -> null
+                else -> bytes.copyOf(transferred)
+            }
+        }
         val request = UsbRequest()
         var initialized = false
         try {
@@ -464,6 +486,8 @@ class Iap2UsbSession internal constructor(
 
     private companion object {
         const val USBMUX_READ_CHUNK_BYTES = 65_536
+        // Android truncates bulkTransfer byte arrays to 16 KiB before API 28.
+        const val LEGACY_USBMUX_READ_CHUNK_BYTES = 16_384
         const val CANCEL_DRAIN_TIMEOUT_MILLIS = 1_000L
     }
 }

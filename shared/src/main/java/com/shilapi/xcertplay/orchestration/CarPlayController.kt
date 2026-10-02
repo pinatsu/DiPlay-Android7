@@ -58,6 +58,7 @@ import com.shilapi.xcertplay.network.WirelessStartupException
 import com.shilapi.xcertplay.network.WirelessStartupFailure
 import com.shilapi.xcertplay.network.WirelessStartupDiagnostics
 import com.shilapi.xcertplay.transport.BlockingDuplexByteStream
+import com.shilapi.xcertplay.transport.Android7AospRfcommConnector
 import com.shilapi.xcertplay.transport.BluetoothRfcommDuplexStream
 import com.shilapi.xcertplay.transport.Ch341DeviceMatcher
 import com.shilapi.xcertplay.transport.Ch341I2cTransport
@@ -1288,17 +1289,51 @@ class CarPlayController(
                 "wireless RFCOMM connecting address=${device.address} " +
                     "uuid=$IAP2_IPHONE_UUID",
             )
-            val socket = synchronized(wirelessResourceLock) {
-                if (isStaleWirelessRun(generation)) return
-                device.createRfcommSocketToServiceRecord(UUID.fromString(IAP2_IPHONE_UUID))
-                    .also { bluetoothSocket = it }
-            }
             logBluetoothConnectionSnapshot(device, "before-connect")
             val bluetoothStarted = System.nanoTime()
-            try {
-                connectBluetoothSocket(socket, device.address)
-                connectionDiagnostic("Bluetooth connect completed elapsedMs=${elapsedMillis(bluetoothStarted)} " +
-                    "socketReportedConnected=${runCatching { socket.isConnected }.getOrNull() ?: "unknown"}")
+            val stream = try {
+                if (Build.VERSION.SDK_INT == Build.VERSION_CODES.N_MR1) {
+                    debugLog("wireless RFCOMM backend=direct-aosp-binder reason=android-7-vendor-spp-proxy")
+                    val connected = Android7AospRfcommConnector.open(
+                        adapter = adapter,
+                        device = device,
+                        uuid = UUID.fromString(IAP2_IPHONE_UUID),
+                        timeoutMillis = RFCOMM_CONNECT_TIMEOUT_MILLIS.toInt(),
+                    )
+                    synchronized(wirelessResourceLock) {
+                        if (isStaleWirelessRun(generation)) {
+                            connected.close()
+                            return
+                        }
+                        bluetoothStream = connected
+                    }
+                    connectionDiagnostic(
+                        "Bluetooth connect completed elapsedMs=${elapsedMillis(bluetoothStarted)} backend=direct-aosp-binder",
+                    )
+                    connected
+                } else {
+                    val socket = synchronized(wirelessResourceLock) {
+                        if (isStaleWirelessRun(generation)) return
+                        device.createRfcommSocketToServiceRecord(UUID.fromString(IAP2_IPHONE_UUID))
+                            .also { bluetoothSocket = it }
+                    }
+                    connectBluetoothSocket(socket, device.address)
+                    connectionDiagnostic(
+                        "Bluetooth connect completed elapsedMs=${elapsedMillis(bluetoothStarted)} " +
+                            "socketReportedConnected=${runCatching { socket.isConnected }.getOrNull() ?: "unknown"}",
+                    )
+                    synchronized(wirelessResourceLock) {
+                        if (isStaleWirelessRun(generation)) return
+                        try {
+                            BluetoothRfcommDuplexStream(socket, ::connectionDiagnostic)
+                                .also { bluetoothStream = it }
+                        } finally {
+                            // The stream owns the connected socket and also closes it if stream
+                            // getters fail. Do not retain a second owner in bootstrap teardown.
+                            if (bluetoothSocket === socket) bluetoothSocket = null
+                        }
+                    }
+                }
             } catch (error: Throwable) {
                 connectionDiagnostic(
                     "Bluetooth connect failed elapsedMs=${elapsedMillis(bluetoothStarted)} " +
@@ -1311,16 +1346,6 @@ class CarPlayController(
             logBluetoothConnectionSnapshot(device, "after-connect")
             if (isStaleWirelessRun(generation)) {
                 return
-            }
-            val stream = synchronized(wirelessResourceLock) {
-                if (isStaleWirelessRun(generation)) return
-                try {
-                    BluetoothRfcommDuplexStream(socket, ::connectionDiagnostic).also { bluetoothStream = it }
-                } finally {
-                    // The stream owns the connected socket and also closes it if stream getters
-                    // fail. Do not retain a second socket owner in bootstrap teardown.
-                    if (bluetoothSocket === socket) bluetoothSocket = null
-                }
             }
             val channel = Iap2Session.openWireless(
                 stream,
@@ -2066,7 +2091,13 @@ class CarPlayController(
 
     private fun startWirelessHotspot(generation: Int): WirelessHotspotInfo {
         val readyDeadline = System.nanoTime() + WirelessStartupPolicy.HOTSPOT_READY_MILLIS * 1_000_000
-        val hotspotMode = config.wirelessHotspotMode
+        val hotspotMode = when {
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.O -> WirelessHotspotMode.MANUAL
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.Q &&
+                config.wirelessHotspotMode == WirelessHotspotMode.WIFI_P2P ->
+                WirelessHotspotMode.LOCAL_ONLY_HOTSPOT
+            else -> config.wirelessHotspotMode
+        }
         if (com.shilapi.xcertplay.network.CarHotspotSettings.shouldEnable(
                 appContext, config.transport == CarPlayTransport.WIRELESS, hotspotMode,
             )

@@ -222,6 +222,21 @@ class NcmUsbBridge internal constructor(
 
     private fun readChunk(timeoutMillis: Long): Int? {
         checkOpen()
+        // Timed UsbRequest waits are unavailable on API 25. Use the bounded bulk endpoint API
+        // there; the NTB buffering above already handles blocks split across transfers.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            val transferred = try {
+                connection.bulkTransfer(
+                    inEndpoint,
+                    readBuffer,
+                    readBuffer.size,
+                    timeoutMillis.coerceAtLeast(1).coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
+                )
+            } catch (error: RuntimeException) {
+                throw failSession("NCM legacy read failed", error)
+            }
+            return if (transferred <= 0) null else transferred
+        }
         var acceptedFallback: UsbReadQueueResult? = null
         val request = try {
             // Publish and queue atomically with close(), so detach cannot miss a new request.

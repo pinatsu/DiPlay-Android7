@@ -21,8 +21,10 @@ import com.shilapi.xcertplay.transport.NcmUsbBridge
 import java.io.IOException
 import java.net.Inet6Address
 import java.net.InetAddress
+import java.net.NetworkInterface
 import java.net.ServerSocket
 import java.net.Socket
+import java.util.Collections
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -86,8 +88,8 @@ class CarPlayVpnService : VpnService() {
         active.set(true)
         val generation = ++attachGeneration
         return try {
-            val address = InetAddress.getByName(linkLocal)
-            if (address !is Inet6Address || !address.isLinkLocalAddress) {
+            val unscopedAddress = InetAddress.getByName(linkLocal)
+            if (unscopedAddress !is Inet6Address || !unscopedAddress.isLinkLocalAddress) {
                 throw IllegalArgumentException("linkLocal must be a link-local IPv6 literal")
             }
             require(hostMac.size == 6) { "hostMac must be 6 bytes" }
@@ -105,6 +107,13 @@ class CarPlayVpnService : VpnService() {
                 ?: throw IOException("VpnService.establish returned null")
             tun = tunFd
 
+            // A link-local IPv6 socket address is ambiguous without an interface scope. Newer
+            // Android releases sometimes infer the TUN interface during bind(), but Android 7.1
+            // returns EINVAL. Resolve the address Android just installed on the VPN interface and
+            // retain its scope id (for example, fe80::2%tun0).
+            val address = resolveScopedAddress(unscopedAddress)
+            Log.i(TAG, "VPN address ready: ${address.hostAddress}")
+
             val ipv6Bridge = Ipv6NcmBridge(ncm, tunFd, hostMac) { error ->
                 onTransportError(generation, listener, error)
             }
@@ -117,6 +126,7 @@ class CarPlayVpnService : VpnService() {
             )
             AttachResult.Started
         } catch (error: Exception) {
+            Log.e(TAG, "NCM/VPN attachment failed", error)
             releaseLocked()
             AttachResult.Failed(error.message ?: error.javaClass.simpleName)
         }
@@ -208,6 +218,33 @@ class CarPlayVpnService : VpnService() {
                 start()
             }
         }
+    }
+
+    private fun resolveScopedAddress(unscopedAddress: Inet6Address): Inet6Address {
+        repeat(SCOPED_ADDRESS_ATTEMPTS) { attempt ->
+            val interfaces = NetworkInterface.getNetworkInterfaces()
+            if (interfaces != null) {
+                for (networkInterface in Collections.list(interfaces)) {
+                    for (candidate in Collections.list(networkInterface.inetAddresses)) {
+                        if (candidate is Inet6Address &&
+                            candidate.address.contentEquals(unscopedAddress.address) &&
+                            candidate.scopeId != 0
+                        ) {
+                            return candidate
+                        }
+                    }
+                }
+            }
+            if (attempt + 1 < SCOPED_ADDRESS_ATTEMPTS) {
+                try {
+                    Thread.sleep(SCOPED_ADDRESS_RETRY_MILLIS)
+                } catch (_: InterruptedException) {
+                    Thread.currentThread().interrupt()
+                    throw IOException("Interrupted while resolving the VPN IPv6 scope")
+                }
+            }
+        }
+        throw IOException("VPN link-local address has no interface scope: ${unscopedAddress.hostAddress}")
     }
 
     private fun acceptLoop(
@@ -352,6 +389,8 @@ class CarPlayVpnService : VpnService() {
         private const val LINK_LOCAL_ROUTE = "fe80::"
         private const val SESSION_NAME = "xcertplay CarPlay"
         private const val TUN_MTU = 1500
+        private const val SCOPED_ADDRESS_ATTEMPTS = 20
+        private const val SCOPED_ADDRESS_RETRY_MILLIS = 10L
 
         /** Returns the VPN consent intent, or null when consent is already granted. */
         fun prepare(context: Context): Intent? = VpnService.prepare(context)

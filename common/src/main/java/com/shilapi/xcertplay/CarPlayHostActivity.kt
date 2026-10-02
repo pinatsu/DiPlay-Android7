@@ -3998,9 +3998,11 @@ class CarPlayHostActivity : ComponentActivity() {
             listener = createSessionListener(controllerGeneration),
             media = media,
             reportStatus = createStatusReporter(controllerGeneration),
-            loadPairRecord = { AirPlayPersistence.loadLockdownRecord(this) },
-            savePairRecord = { record -> AirPlayPersistence.saveLockdownRecord(this, record) },
-            clearPairRecord = { AirPlayPersistence.clearLockdownRecord(this) },
+            loadPairRecord = { phoneId -> AirPlayPersistence.loadLockdownRecord(this, phoneId) },
+            savePairRecord = { phoneId, record ->
+                AirPlayPersistence.saveLockdownRecord(this, phoneId, record)
+            },
+            clearPairRecord = { phoneId -> AirPlayPersistence.clearLockdownRecord(this, phoneId) },
             locationProvider = locationProvider,
             vehicleStatusProvider = if (com.shilapi.xcertplay.hud.BydOutputSettings.batteryToIphoneActive(this)) {
                 com.shilapi.xcertplay.hud.BydNavigationOutputs.batteryStatus(applicationContext)
@@ -4027,7 +4029,12 @@ class CarPlayHostActivity : ComponentActivity() {
             }
         }
         try {
-            startForegroundService(Intent(this, DiPlaySessionService::class.java))
+            val serviceIntent = Intent(this, DiPlaySessionService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(serviceIntent)
+            } else {
+                startService(serviceIntent)
+            }
             next.start()
         } catch (error: RuntimeException) {
             appendLog("Connection could not start: ${error.javaClass.simpleName}")

@@ -1142,13 +1142,27 @@ class DiPlayActivity : ComponentActivity() {
 
     private fun wirelessLinkControls(parent: LinearLayout) {
         val mode = if (pendingCarHotspotSetup) WirelessHotspotMode.MANUAL else AirPlayPersistence.loadWirelessHotspotMode(this)
-        val modes = listOf(WirelessHotspotMode.MANUAL, WirelessHotspotMode.WIFI_P2P, WirelessHotspotMode.EXISTING_WIFI)
-        val titles = listOf(getString(R.string.built_in_car_hotspot), getString(R.string.wifi_direct), getString(R.string.existing_wifi_title))
-        val descriptions = listOf(
-            getString(R.string.hotspot_mode_manual_desc),
-            getString(R.string.hotspot_mode_p2p_desc),
-            getString(R.string.existing_wifi_description)
-        )
+        val modes = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            listOf(WirelessHotspotMode.MANUAL, WirelessHotspotMode.WIFI_P2P, WirelessHotspotMode.EXISTING_WIFI)
+        } else {
+            listOf(WirelessHotspotMode.MANUAL)
+        }
+        val titles = modes.map {
+            when (it) {
+                WirelessHotspotMode.MANUAL -> getString(R.string.built_in_car_hotspot)
+                WirelessHotspotMode.WIFI_P2P -> getString(R.string.wifi_direct)
+                WirelessHotspotMode.EXISTING_WIFI -> getString(R.string.existing_wifi_title)
+                else -> error("Unsupported wireless hotspot mode: $it")
+            }
+        }
+        val descriptions = modes.map {
+            when (it) {
+                WirelessHotspotMode.MANUAL -> getString(R.string.hotspot_mode_manual_desc)
+                WirelessHotspotMode.WIFI_P2P -> getString(R.string.hotspot_mode_p2p_desc)
+                WirelessHotspotMode.EXISTING_WIFI -> getString(R.string.existing_wifi_description)
+                else -> error("Unsupported wireless hotspot mode: $it")
+            }
+        }
         val wide = resources.configuration.screenWidthDp >= 850
         val choices = if (wide) row().apply { gravity = Gravity.TOP } else column()
         parent.addView(choices)

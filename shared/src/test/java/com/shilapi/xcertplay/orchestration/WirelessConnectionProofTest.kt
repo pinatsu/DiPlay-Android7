@@ -26,6 +26,19 @@ class WirelessConnectionProofTest {
         assertEquals(0, saves)
     }
 
+    @Test fun renderedFrameProofBelongsOnlyToTheCurrentGeneration() {
+        val session = Any()
+        val proof = WirelessConnectionProof<Any>()
+        proof.begin(1) {}
+        proof.activate(1, session)
+        assertEquals(false, proof.hasRenderedFrame(1))
+        proof.rendered(1, session)
+        assertEquals(true, proof.hasRenderedFrame(1))
+        assertEquals(false, proof.hasRenderedFrame(2))
+        proof.end(1, session)
+        assertEquals(false, proof.hasRenderedFrame(1))
+    }
+
     @Test fun bothEventsAreRequiredInEitherOrderAndOnlySaveOnce() {
         for (videoFirst in listOf(true, false)) {
             var saves = 0

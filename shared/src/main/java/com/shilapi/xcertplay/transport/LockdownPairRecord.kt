@@ -13,7 +13,7 @@ import java.security.Signature
 import java.security.interfaces.RSAPublicKey
 import java.security.spec.RSAPublicKeySpec
 import java.text.SimpleDateFormat
-import java.util.Base64
+import com.shilapi.xcertplay.util.Base64Codec
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
@@ -299,7 +299,7 @@ private object CertificateMaterialGenerator {
         val end = "-----END RSA PUBLIC KEY-----"
         require(text.startsWith(begin) && text.endsWith(end)) { "Expected a PKCS#1 RSA public key" }
         val encoded = text.substring(begin.length, text.length - end.length).filterNot(Char::isWhitespace)
-        val der = Base64.getDecoder().decode(encoded)
+        val der = Base64Codec.decode(encoded)
         val outer = DerReader(der)
         val sequence = outer.readConstructed(0x30)
         val modulus = sequence.readPositiveInteger()
@@ -317,7 +317,7 @@ private object CertificateMaterialGenerator {
         if (commonName == null) sequence() else sequence(set(sequence(objectIdentifier("2.5.4.3"), utf8String(commonName))))
 
     private fun pem(label: String, der: ByteArray): ByteArray {
-        val encoded = Base64.getMimeEncoder(64, byteArrayOf('\n'.code.toByte())).encodeToString(der)
+        val encoded = Base64Codec.encodePem(der)
         return "-----BEGIN $label-----\n$encoded\n-----END $label-----\n".toByteArray(StandardCharsets.US_ASCII)
     }
 

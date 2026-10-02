@@ -42,6 +42,20 @@ class BluetoothRfcommDuplexStream internal constructor(
         onDiagnostic,
     )
 
+    internal constructor(
+        input: InputStream,
+        output: OutputStream,
+        closeTransport: AutoCloseable,
+        onDiagnostic: (String) -> Unit = {},
+    ) : this(
+        object : BluetoothRfcommSocketAccess {
+            override fun inputStream(): InputStream = input
+            override fun outputStream(): OutputStream = output
+            override fun close() = closeTransport.close()
+        },
+        onDiagnostic,
+    )
+
     private val lock = Object()
     private val sendLock = Object()
     private val pending = ArrayDeque<ByteArray>()
