@@ -46,7 +46,9 @@ internal class AudioFocusCoordinator(
 
     private val manager = context?.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
     private val active = LinkedHashMap<AudioTrack, Entry>()
-    private var request: AudioFocusRequest? = null
+    // Keep API-26 AudioFocusRequest out of this API-25-loaded class's fields. The guarded helper
+    // below owns the platform type; Android 7 uses the legacy focus API.
+    private var request: Any? = null
     private var requestedChannel: AudioChannel? = null
     private var mediaVolume = FULL_VOLUME
     private var closed = false
@@ -102,19 +104,18 @@ internal class AudioFocusCoordinator(
     }
 
     private fun refreshRequest() {
+        val audioManager = manager ?: return
         val primary = active.values.maxByOrNull { it.channel.focusPriority() }
         if (primary == null) {
             focusGeneration += 1
-            val abandoned = request
-            request = null
+            abandonRequest(audioManager)
             requestedChannel = null
             mediaVolume = FULL_VOLUME
-            abandoned?.let { manager?.abandonAudioFocusRequest(it) }
             return
         }
         if (request != null && requestedChannel == primary.channel) return
         focusGeneration += 1
-        request?.let { manager?.abandonAudioFocusRequest(it) }
+        abandonRequest(audioManager)
         val gain = when (primary.channel) {
             AudioChannel.MEDIA -> AudioManager.AUDIOFOCUS_GAIN
             AudioChannel.PHONE -> AudioManager.AUDIOFOCUS_GAIN_TRANSIENT
@@ -122,17 +123,32 @@ internal class AudioFocusCoordinator(
             AudioChannel.NAVIGATION -> return
         }
         currentListener = listenerFor(focusGeneration)
-        val next = AudioFocusRequest.Builder(gain)
-            .setAudioAttributes(primary.attributes)
-            .setOnAudioFocusChangeListener(currentListener, Handler(Looper.getMainLooper()))
-            .build()
-        request = next
         requestedChannel = primary.channel
-        val result = manager?.requestAudioFocus(next)
+        val result = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Api26AudioFocus.request(audioManager, gain, primary.attributes, currentListener).let { next ->
+                request = next.first
+                next.second
+            }
+        } else {
+            request = LEGACY_FOCUS_REQUEST
+            @Suppress("DEPRECATION")
+            audioManager.requestAudioFocus(currentListener, AudioManager.STREAM_MUSIC, gain)
+        }
         if (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) setMediaVolume(FULL_VOLUME)
         val line = "Audio: focus requested channel=${primary.channel} gain=$gain granted=$result activeTracks=${active.size}"
         Log.i(TAG, line)
         runCatching { report(line) }
+    }
+
+    private fun abandonRequest(audioManager: AudioManager) {
+        val current = request ?: return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Api26AudioFocus.abandon(audioManager, current)
+        } else {
+            @Suppress("DEPRECATION")
+            audioManager.abandonAudioFocus(currentListener)
+        }
+        request = null
     }
 
     private fun setMediaVolume(volume: Float) {
@@ -159,6 +175,27 @@ internal class AudioFocusCoordinator(
         const val TAG = "DiPlay-AudioFocus"
         const val FULL_VOLUME = 1f
         const val DUCKED_VOLUME = 0.2f
+        val LEGACY_FOCUS_REQUEST = Any()
+    }
+}
+
+@android.annotation.TargetApi(Build.VERSION_CODES.O)
+private object Api26AudioFocus {
+    fun request(
+        manager: AudioManager,
+        gain: Int,
+        attributes: AudioAttributes,
+        listener: AudioManager.OnAudioFocusChangeListener,
+    ): Pair<Any, Int> {
+        val request = AudioFocusRequest.Builder(gain)
+            .setAudioAttributes(attributes)
+            .setOnAudioFocusChangeListener(listener, Handler(Looper.getMainLooper()))
+            .build()
+        return request to manager.requestAudioFocus(request)
+    }
+
+    fun abandon(manager: AudioManager, request: Any) {
+        manager.abandonAudioFocusRequest(request as AudioFocusRequest)
     }
 }
 

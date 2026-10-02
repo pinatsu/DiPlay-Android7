@@ -325,7 +325,7 @@ object BydClusterSongTool {
         args.getOrNull(0)?.takeIf { it != "-" }?.let { println("source=${setState.invoke(device, DEVICE, SOURCE, it.toInt())}") }
         args.getOrNull(1)?.takeIf { it != "-" }?.let { println("state=${setState.invoke(device, DEVICE, STATE, it.toInt())}") }
         args.getOrNull(2)?.takeIf { it != "-" }?.let { encoded ->
-            val text = String(java.util.Base64.getDecoder().decode(encoded), Charsets.UTF_8).toByteArray(Charsets.UTF_16LE)
+            val text = String(Base64.decode(encoded, Base64.DEFAULT), Charsets.UTF_8).toByteArray(Charsets.UTF_16LE)
             println("text=${if (text.size > ClusterSongState.MAX_TEXT_BYTES) "ERR too long" else setInfo.invoke(device, DEVICE, TEXT, text)}")
         }
     }
