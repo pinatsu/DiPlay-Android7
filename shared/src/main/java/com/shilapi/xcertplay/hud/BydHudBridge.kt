@@ -4,6 +4,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
+import android.content.pm.PackageManager
 import android.os.Binder
 import android.os.IBinder
 import android.os.Parcel
@@ -33,6 +34,7 @@ internal object BydHudBridge {
     private val lock = Any()
     private val route = BydHudRouteState()
     private var context: Context? = null
+    private var available: Boolean? = null
     private var binder: IBinder? = null
     private var binding = false
     private var started = false
@@ -72,6 +74,21 @@ internal object BydHudBridge {
 
     fun initialize(appContext: Context) = synchronized(lock) {
         if (context == null) context = appContext.applicationContext
+        if (available == null) {
+            available = try {
+                appContext.packageManager.getServiceInfo(
+                    ComponentName(SOMEIP_PACKAGE, SOMEIP_CLASS),
+                    0,
+                )
+                true
+            } catch (_: PackageManager.NameNotFoundException) {
+                false
+            }
+            Log.i(TAG, "SOME/IP HUD service available=$available")
+        }
+        // Most head units do not have BYD's private gateway. Avoid asking ActivityManager to
+        // start a missing component every 300 ms for the lifetime of a CarPlay session.
+        if (available != true) return@synchronized
         bindLocked()
         if (!senderStarted) {
             senderStarted = true
@@ -161,7 +178,7 @@ internal object BydHudBridge {
 
     private fun bindLocked() {
         val appContext = context ?: return
-        if (binder != null || binding) return
+        if (available != true || binder != null || binding) return
         try {
             // The gateway's onUnbind requires a MIME type; a typeless bind crashes the whole SOME/IP process.
             val intent = Intent(SOMEIP_ACTION).apply {
