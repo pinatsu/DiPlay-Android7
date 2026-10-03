@@ -1,0 +1,4 @@
+<resources>
+    <string name="settings_navigation_ducking">Lower music for navigation</string>
+    <string name="settings_navigation_ducking_description">Lowers CarPlay music to 30% while navigation and alert audio is playing, then restores it smoothly. Changes apply after reconnecting.</string>
+</resources>

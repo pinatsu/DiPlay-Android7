@@ -55,7 +55,7 @@ class AudioCodecOutputReleaseTest {
         val constructor = type.declaredConstructors.single { !it.isSynthetic }.apply { isAccessible = true }
         val arguments = mutableListOf<Any?>(
             AudioFormat(AudioCodecKind.AAC_LC, 48_000, 2, 96, audioType), false, false, 0, 0,
-            AudioFocusCoordinator(null, false, false), 0, 500,
+            AudioFocusCoordinator(null, false, false), NavigationAudioDucker(false), 0, 500,
         )
         constructor.parameterTypes.drop(arguments.size).forEach { parameter ->
             arguments.add(when (parameter) {
