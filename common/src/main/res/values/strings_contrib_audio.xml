@@ -8,4 +8,6 @@
     <string name="contrib_audio_home_toggle_audio_focus_desc">CarPlay media claims audio focus. If sound disappears while enabled (some head units handle focus badly), turn it off. Changes apply on reconnect.</string>
     <string name="audio_focus_auto_yield">Mute media on temporary focus loss</string>
     <string name="audio_focus_auto_yield_desc">When audio focus is enabled, mute media during Android audio interruptions, including calls. Restore audio when focus returns. Disable if your head unit does not return focus. Changes apply on reconnect.</string>
+    <string name="contrib_audio_home_toggle_navigation_ducking">Lower music for navigation</string>
+    <string name="contrib_audio_home_toggle_navigation_ducking_desc">Lowers CarPlay music to 30% while navigation and alert audio is playing, then restores it smoothly. Changing this setting reconnects CarPlay.</string>
 </resources>

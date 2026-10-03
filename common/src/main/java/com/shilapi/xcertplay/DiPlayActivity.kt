@@ -3336,6 +3336,15 @@ class DiPlayActivity : ComponentActivity() {
             AirPlayPersistence.saveAudioFocusAutoYield(this, it)
         }
         parent.addView(dependent)
+        toggle(
+            parent,
+            getString(R.string.contrib_audio_home_toggle_navigation_ducking),
+            getString(R.string.contrib_audio_home_toggle_navigation_ducking_desc),
+            AirPlayPersistence.loadNavigationDuckingEnabled(this),
+        ) {
+            AirPlayPersistence.saveNavigationDuckingEnabled(this, it)
+            if (CarPlayBackgroundSession.hasSession()) connect(AirPlayPersistence.loadWirelessEnabled(this))
+        }
     }
 
     private fun toggle(parent: LinearLayout, title: String, description: String, value: Boolean, enabled: Boolean = true, save: (Boolean) -> Unit): Switch {
