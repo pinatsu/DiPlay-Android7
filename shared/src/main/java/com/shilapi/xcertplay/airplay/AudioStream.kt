@@ -207,7 +207,7 @@ class AudioStream(
         const val NONCE_LEN = 8
         const val TAIL_LEN = TAG_LEN + NONCE_LEN
         const val FIRST_PACKET_LOG_COUNT = 3
-        const val PACKET_LOG_INTERVAL = 100
+        const val PACKET_LOG_INTERVAL = 1_500
     }
 }
 

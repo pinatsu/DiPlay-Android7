@@ -91,8 +91,9 @@ class Iap2Session private constructor(
     }
 
     private fun emitFrameTrace(direction: Iap2TraceDirection, frame: Iap2Frame) {
+        if (frame.messageId !in CONNECTION_TRACE_MESSAGE_IDS) return
         try {
-            emitTrace(Iap2FrameFormatter.format(direction, traceContext, frame))
+            emitTrace(Iap2FrameFormatter.formatSummary(direction, traceContext, frame))
         } catch (failure: Exception) {
             emitTrace(
                 Iap2FrameFormatter.formatFailure(
@@ -115,6 +116,18 @@ class Iap2Session private constructor(
 
     companion object {
         private const val DEFAULT_SEND_TIMEOUT_MILLIS = 5_000L
+        private val CONNECTION_TRACE_MESSAGE_IDS = setOf(
+            0x4300, // CarPlayAvailability
+            0x4301, // CarPlayStartSession
+            0x4e0d, // WirelessCarPlayUpdate
+            0x5702, // RequestWiFiConfiguration
+            0x5703, // AccessoryWiFiConfiguration
+            0xaa00, // RequestAuthenticationCertificate
+            0xaa01, // AuthenticationCertificate
+            0xaa02, // RequestAuthenticationChallengeResponse
+            0xaa03, // AuthenticationResponse
+            0xaa05, // AuthenticationSucceeded
+        )
 
         fun open(
             underlying: BlockingDuplexByteStream,

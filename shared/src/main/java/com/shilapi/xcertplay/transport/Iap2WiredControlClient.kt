@@ -110,7 +110,9 @@ class Iap2WiredControlClient(
                     }
 
                     else -> {
-                        onProgress("iap2 rx=0x${incoming.messageId.toString(16).padStart(4, '0')}")
+                        if (incoming.messageId != NOW_PLAYING_UPDATE) {
+                            onProgress("iap2 rx=0x${incoming.messageId.toString(16).padStart(4, '0')}")
+                        }
                         onIncoming(incoming)
                         forwardedFrames++
                     }
@@ -126,6 +128,7 @@ class Iap2WiredControlClient(
     }
 
     companion object {
+        private const val NOW_PLAYING_UPDATE = 0x5001
         const val NO_TIMEOUT_MILLIS = Long.MAX_VALUE
         private const val CARPLAY_AVAILABILITY = 0x4300
         private const val CARPLAY_START_SESSION = 0x4301

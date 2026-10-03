@@ -186,4 +186,16 @@ class Iap2ProtocolTest {
 
         assertTrue(formatted.contains("\\r\\n"))
     }
+
+    @Test
+    fun summaryFormatterOmitsPayloadContent() {
+        val frame = Iap2Frame(0x4301, byteArrayOf(0, 4, 0, 0))
+
+        val formatted = Iap2FrameFormatter.formatSummary(Iap2TraceDirection.TX, "wired", frame)
+
+        assertTrue(formatted.contains("0x4301 CarPlayStartSession"))
+        assertTrue(formatted.endsWith("body=4B"))
+        assertFalse(formatted.contains("raw-body"))
+        assertFalse(formatted.contains("00 04"))
+    }
 }

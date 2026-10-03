@@ -316,7 +316,6 @@ class AirPlaySession(
             "Content-Type: $PLIST_CONTENT_TYPE\r\n" +
             "Content-Length: ${body.size}\r\n" +
             "CSeq: $eventCseq\r\n\r\n"
-        trace("airplay event tx headers=$head bodyHex=${body.toHex()}")
         return try {
             val bytes = cipher.encrypt(head.toByteArray(Charsets.US_ASCII) + body)
             val output = socket.getOutputStream()
@@ -469,18 +468,15 @@ class AirPlaySession(
                     val showInDebugOverlay =
                         !path.endsWith("/feedback") &&
                             !(request.method == "POST" && path.endsWith("/command"))
-                    debugLog(
-                        "airplay rx ${request.method} ${request.path} cseq=$cseq body=${request.body.size}",
-                        showInDebugOverlay,
-                    )
-                    if (showInDebugOverlay) debugLog(
-                        AirPlayControlDiagnostics.request(request.method, request.path, request.body.size),
-                        false,
-                    )
-                    trace(
-                        "airplay control rx headers=${request.headers} " +
-                            "bodyHex=${request.body.toHex()}",
-                    )
+                    if (showInDebugOverlay) {
+                        debugLog(
+                            "airplay rx ${request.method} ${request.path} cseq=$cseq body=${request.body.size}",
+                        )
+                        debugLog(
+                            AirPlayControlDiagnostics.request(request.method, request.path, request.body.size),
+                            false,
+                        )
+                    }
                     val response = try {
                         handle(request)
                     } catch (error: Exception) {
@@ -491,16 +487,16 @@ class AirPlaySession(
                         )
                         RtspMessage.Response(status = 500)
                     }
-                    debugLog(
-                        "airplay tx status=${response.status ?: 200} cseq=$cseq body=${response.body.size}",
-                        showInDebugOverlay,
-                    )
-                    if (showInDebugOverlay) debugLog(
-                        "airplay control response status=${response.status ?: 200} contentBytes=${response.body.size}",
-                        false,
-                    )
+                    if (showInDebugOverlay) {
+                        debugLog(
+                            "airplay tx status=${response.status ?: 200} cseq=$cseq body=${response.body.size}",
+                        )
+                        debugLog(
+                            "airplay control response status=${response.status ?: 200} contentBytes=${response.body.size}",
+                            false,
+                        )
+                    }
                     val wire = RtspMessage.buildResponse(request, response)
-                    trace("airplay control tx wireHex=${wire.toHex()}")
                     output.write(cipher?.encrypt(wire) ?: wire)
                     if (cipher == null && pairVerify.controlKeys != null) {
                         val keys = pairVerify.controlKeys!!
@@ -640,7 +636,6 @@ class AirPlaySession(
             val responseStreams = handleStreams(streams)
             debugLog("airplay SETUP response streams=$responseStreams")
             val body = BplistCodec.encode(linkedMapOf("streams" to responseStreams))
-            trace("airplay SETUP response bplistHex=${body.toHex()}")
             return RtspMessage.Response(headers = mapOf("Content-Type" to PLIST_CONTENT_TYPE), body = body)
         }
 
@@ -765,8 +760,6 @@ class AirPlaySession(
             "airplay TEARDOWN types=${types ?: "all"} activeBefore=$activeStreams " +
                 "body=${request.body.size} bytes payload=$decodedBody",
         )
-        trace("airplay TEARDOWN raw${request.body.size}Hex=${request.body.toHex()}")
-
         // Restore wheel input before releasing media resources, which may take time to close.
         if (types == null || STREAM_TYPE_MAIN_SCREEN in types) mainScreenToken = null
         if (types == null || STREAM_TYPE_ALT_SCREEN in types) clearClusterContent()
@@ -901,15 +894,7 @@ class AirPlaySession(
                 plaintext = parsed.rest
                 for (message in parsed.messages) {
                     if (message.method.startsWith("RTSP/") || message.method.startsWith("HTTP/")) continue
-                    debugLog(
-                        "airplay event rx ${message.method} ${message.path} cseq=${message.headers["cseq"] ?: "-"} body=${message.body.size}",
-                    )
                     val response = RtspMessage.buildResponse(message, RtspMessage.Response(status = 200))
-                    trace(
-                        "airplay event rx headers=${message.headers} " +
-                            "bodyHex=${message.body.toHex()}",
-                    )
-                    trace("airplay event tx wireHex=${response.toHex()}")
                     synchronized(eventWriteLock) {
                         output.write(cipher.encrypt(response))
                         output.flush()
@@ -994,9 +979,6 @@ internal fun safeClose(closeable: Closeable?) {
         // Best-effort close.
     }
 }
-
-private fun ByteArray.toHex(): String =
-    joinToString(separator = "") { byte -> "%02x".format(byte.toInt() and 0xff) }
 
 private fun asMap(value: Any?): Map<String, Any?>? {
     val map = value as? Map<*, *> ?: return null

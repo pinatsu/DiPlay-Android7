@@ -188,9 +188,6 @@ class IapTunnel(
             if (buffer.size - offset < size) break
             val messageType = readU32Be(buffer, offset + MESSAGE_TYPE_OFFSET)
             if (messageType == MSG_TYPE_COMM) {
-                listener.onDebug(
-                    "AirPlay iAP tunnel package type=comm body=${size - PACKAGE_HEADER_LEN}",
-                )
                 listener.onIap(buffer.copyOfRange(offset + PACKAGE_HEADER_LEN, offset + size))
             }
             offset += size

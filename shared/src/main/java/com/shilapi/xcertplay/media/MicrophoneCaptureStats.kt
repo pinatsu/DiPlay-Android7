@@ -89,7 +89,7 @@ internal class MicrophoneCaptureStats(
     private fun emit(message: String) { runCatching { report(message) } }
 
     companion object {
-        private const val REPORT_INTERVAL_NS = 5_000_000_000L
+        private const val REPORT_INTERVAL_NS = 30_000_000_000L
 
         private fun metadata(config: MicrophoneConfig): String {
             val (type, source) = when (config.audioType) {

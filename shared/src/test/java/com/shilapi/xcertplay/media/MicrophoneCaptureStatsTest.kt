@@ -10,7 +10,7 @@ class MicrophoneCaptureStatsTest {
     private val config = MicrophoneConfig("telephony", 48_000, 1, 100, 20,
         InetAddress.getByName("198.51.100.20"), 54321, ByteArray(32) { 0x7f }, AudioCodecKind.OPUS)
 
-    @Test fun aggregatesFiveSecondWindowsAndKeepsFinalPartialWindow() {
+    @Test fun aggregatesThirtySecondWindowsAndKeepsFinalPartialWindow() {
         var now = 0L
         val reports = mutableListOf<String>()
         val stats = MicrophoneCaptureStats(config, reports::add) { now }
@@ -28,7 +28,7 @@ class MicrophoneCaptureStatsTest {
         stats.sendFailed()
         stats.flush()
         assertEquals(1, reports.size)
-        now = 5_000_000_000
+        now = 30_000_000_000
         stats.flush(routeType = { 18 })
         val first = reports.last()
         assertTrue(first.contains("captureBytes=1920 reads=2 zeroReads=1 readErrors=0 readMaxMs=30"))
@@ -61,7 +61,7 @@ class MicrophoneCaptureStatsTest {
         }
         assertEquals(0, reports)
         assertEquals(0, routeQueries)
-        now = 5_000_000_000
+        now = 30_000_000_000
         stats.flush(routeType = { routeQueries++; 15 })
         assertEquals(1, reports)
         assertEquals(1, routeQueries)
@@ -81,7 +81,7 @@ class MicrophoneCaptureStatsTest {
         stats.reading()
         stats.read(1920)
         stats.sent()
-        now = 5_000_000_000
+        now = 30_000_000_000
         stats.flush(routeType = { throw IllegalStateException("route metadata unavailable") })
         fail = false
         stats.flush(ended = true)

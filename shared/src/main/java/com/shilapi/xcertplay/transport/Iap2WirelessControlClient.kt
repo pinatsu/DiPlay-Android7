@@ -215,7 +215,9 @@ class Iap2WirelessControlClient(
                     }
 
                     else -> {
-                        onProgress("iap2 rx=0x${incoming.messageId.toString(16).padStart(4, '0')}")
+                        if (incoming.messageId != NOW_PLAYING_UPDATE) {
+                            onProgress("iap2 rx=0x${incoming.messageId.toString(16).padStart(4, '0')}")
+                        }
                         onIncoming(incoming)
                         forwardedFrames++
                     }
@@ -231,6 +233,7 @@ class Iap2WirelessControlClient(
     }
 
     companion object {
+        private const val NOW_PLAYING_UPDATE = 0x5001
         private const val REQUEST_ACCESSORY_WIFI_CONFIGURATION = 0x5702
         private const val ACCESSORY_WIFI_CONFIGURATION = 0x5703
         private const val CARPLAY_AVAILABILITY = 0x4300

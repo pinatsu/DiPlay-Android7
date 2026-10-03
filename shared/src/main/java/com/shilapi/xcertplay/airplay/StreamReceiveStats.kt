@@ -77,12 +77,15 @@ internal class StreamReceiveStats(
 
     fun processed() {
         maxProcessNs = maxOf(maxProcessNs, nowNs() - processingStart)
-        flush()
+        // A forward gap can explain audible/video loss and is worth reporting immediately.
+        // Isolated late/duplicate packets stay in the regular window to avoid log storms.
+        flush(anomaly = sequenceGapEvents > 0)
     }
 
-    fun flush(ended: Boolean = false) {
+    fun flush(ended: Boolean = false, anomaly: Boolean = false) {
         val now = nowNs()
-        if (!ended && now - windowStart < 5_000_000_000L) return
+        if (!ended && !anomaly && now - windowStart < REPORT_INTERVAL_NS) return
+        if (ended && packets == 0) return
         runCatching { report("Receive: $label packets=$packets bytes=$bytes readMaxMs=${maxReadNs / 1_000_000} " +
             "processMaxUs=${maxProcessNs / 1000} seqForwardGaps=$forwardGapPackets " +
             "lateOrDuplicate=$lateOrDuplicate interArrivalMaxMs=${maxInterArrivalNs / 1_000_000} " +
@@ -121,6 +124,8 @@ internal class StreamReceiveStats(
             "decryptMBps=$mbPerSecond"
     }
 
-    private companion object { const val LONG_READ_NS = 250_000_000L }
-
+    private companion object {
+        const val LONG_READ_NS = 250_000_000L
+        const val REPORT_INTERVAL_NS = 30_000_000_000L
+    }
 }

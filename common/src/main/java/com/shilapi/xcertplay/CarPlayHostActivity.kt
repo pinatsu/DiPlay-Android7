@@ -3724,11 +3724,7 @@ class CarPlayHostActivity : ComponentActivity() {
             },
             mediaBufferMillis = AirPlayPersistence.loadMediaBufferMillis(this),
             onAudioDiagnostic = { message ->
-                if (message.startsWith("Microphone: ")) {
-                    AsyncDiagnosticLog.append(diagnosticLog, message)
-                } else {
-                    diagnosticLog?.append(formattedLogLine(message, System.currentTimeMillis()))
-                }
+                AsyncDiagnosticLog.append(diagnosticLog, message)
             },
             onMediaAudioChanged = CarPlayMediaKeys::onMediaAudioChanged,
         )
@@ -3821,18 +3817,15 @@ class CarPlayHostActivity : ComponentActivity() {
                     AsyncDiagnosticLog.append(diagnosticLog, message)
                     return
                 }
-                runOnUiThread {
-                    if (controllerGeneration != restartGeneration) {
-                        return@runOnUiThread
-                    }
-                    DisplayDiagnosticSnapshot.record(this@CarPlayHostActivity, displayDiagnosticAttempt, message)
-                    if (menuOpen) return@runOnUiThread
-                    if (message.startsWith(PROTOCOL_TRACE_PREFIX)) {
-                        appendFileLog(message)
-                    } else {
-                        appendLog(message)
-                    }
-                }
+                if (menuOpen || controllerGeneration != restartGeneration) return
+                // Transport callbacks must never perform flash I/O on the main thread. The bounded
+                // writer also prevents a noisy or stalled diagnostic path from delaying CarPlay.
+                AsyncDiagnosticLog.append(diagnosticLog, message)
+                DisplayDiagnosticSnapshot.record(
+                    this@CarPlayHostActivity,
+                    displayDiagnosticAttempt,
+                    message,
+                )
             }
         }
 
@@ -4762,10 +4755,6 @@ class CarPlayHostActivity : ComponentActivity() {
         sessionLog?.append(formattedLogLine(safe, System.currentTimeMillis()))
     }
 
-    private fun appendFileLog(message: String) {
-        sessionLog?.append(formattedLogLine(message, System.currentTimeMillis()))
-    }
-
     private fun formattedLogLine(message: String, nowMillis: Long): String =
         "${SimpleDateFormat("HH:mm:ss.SSS", Locale.US).format(Date(nowMillis))}  $message"
 
@@ -4874,7 +4863,6 @@ class CarPlayHostActivity : ComponentActivity() {
         const val CONTROLLER_CLOSE_TIMEOUT_MILLIS = 4_000L
         const val AUDIO_CAPTURE_MARKER = "audio-capture.enabled"
         const val AUDIO_CAPTURE_DIRECTORY = "audio-captures"
-        const val PROTOCOL_TRACE_PREFIX = "TRACE "
         const val SETTINGS_SWIPE_DISTANCE_DP = 72
         const val SETTINGS_SWIPE_DIRECTION_RATIO = 1.15f
         const val MAX_SETTINGS_MENU_WIDTH_PX = 1200

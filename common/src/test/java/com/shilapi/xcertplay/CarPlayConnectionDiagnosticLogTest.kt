@@ -53,4 +53,13 @@ class CarPlayConnectionDiagnosticLogTest {
         assertTrue(AsyncDiagnosticLog.awaitIdle(2_000))
         assertFalse(log.contains("private-token"))
     }
+
+    @Test fun currentControllerLogIsQueuedWithoutTheUiThread() {
+        activity.javaClass.getDeclaredField("restartGeneration").apply { isAccessible = true }.set(activity, 1)
+
+        listener.onDebugLog("current controller milestone")
+
+        assertTrue(AsyncDiagnosticLog.awaitIdle(2_000))
+        assertTrue(log.contains("current controller milestone"))
+    }
 }

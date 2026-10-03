@@ -44,9 +44,11 @@ class StreamReceiveStatsTest {
         packet(2)
         packet(4)
         stats.flush(ended = true)
-        assertEquals(1, output.size)
-        assertTrue(output.single().contains("readMaxMs=400 processMaxUs=200 seqForwardGaps=2 lateOrDuplicate=1"))
-        assertTrue(output.single().contains("packets=5 bytes=500"))
+        assertEquals(2, output.size)
+        assertTrue(output.first().contains("readMaxMs=400 processMaxUs=200 seqForwardGaps=2"))
+        assertTrue(output.first().contains("packets=3 bytes=300"))
+        assertTrue(output.last().contains("packets=2 bytes=200"))
+        assertTrue(output.last().contains("lateOrDuplicate=1"))
     }
 
     @Test fun reportResetsWindowButRetainsSequenceContinuity() {
@@ -54,7 +56,7 @@ class StreamReceiveStatsTest {
         val output = mutableListOf<String>()
         val stats = StreamReceiveStats("audio", output::add) { clock }
         stats.reading()
-        clock = 5_000_000_000L
+        clock = 30_000_000_000L
         stats.received(10, 1)
         stats.processed()
         stats.reading()
@@ -74,11 +76,28 @@ class StreamReceiveStatsTest {
         stats.decrypted(2_000_000, 500_000)
         stats.decrypted(500_000, 250_000)
         stats.processed()
-        clock = 5_000_000_000L
+        clock = 30_000_000_000L
         stats.flush()
         assertTrue(output.last().endsWith(" decryptAvgUs=1250 decryptMaxUs=2000 decryptMBps=300"))
-        clock = 10_000_000_000L
+        clock = 60_000_000_000L
         stats.flush()
         assertTrue(!output.last().contains("decrypt"))
+    }
+
+    @Test fun forwardGapReportsImmediatelyBeforeTheRegularWindow() {
+        var clock = 0L
+        val output = mutableListOf<String>()
+        val stats = StreamReceiveStats("video", output::add) { clock }
+        stats.reading()
+        stats.received(10, 1)
+        stats.processed()
+        clock = 1_000_000_000L
+        stats.reading()
+        stats.received(10, 3)
+        stats.processed()
+
+        assertEquals(1, output.size)
+        assertTrue(output.single().contains("seqForwardGaps=1"))
+        assertTrue(output.single().contains("ended=false"))
     }
 }

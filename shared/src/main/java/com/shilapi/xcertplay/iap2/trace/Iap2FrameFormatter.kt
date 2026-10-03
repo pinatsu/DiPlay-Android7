@@ -71,6 +71,18 @@ object Iap2FrameFormatter {
         }
     }
 
+    /** One allocation-light line for normal operation; detailed traces remain opt-in diagnostics. */
+    fun formatSummary(
+        direction: Iap2TraceDirection,
+        context: String,
+        frame: Iap2Frame,
+    ): String {
+        val endpointText = Iap2Endpoints.byId(frame.messageId)?.let { " ${it.name}" }.orEmpty()
+        return "IAP2 ${direction.label} [$context] 0x" +
+            frame.messageId.toString(16).padStart(4, '0') + endpointText +
+            " body=${frame.payload.size}B"
+    }
+
     fun formatFailure(
         direction: Iap2TraceDirection,
         context: String,

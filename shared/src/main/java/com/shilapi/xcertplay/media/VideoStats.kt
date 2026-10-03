@@ -1,8 +1,6 @@
 package com.shilapi.xcertplay.media
 
-import android.util.Log
-
-/** Five-second video counters that separate network/iPhone gaps from decoder throughput. */
+/** Low-frequency video counters that separate network/iPhone gaps from decoder throughput. */
 internal class VideoStats(
     private val label: String = "",
     private val nanoTime: () -> Long = System::nanoTime,
@@ -52,7 +50,6 @@ internal class VideoStats(
             touchAvgMs, maxTouchLatencyNs / 1_000_000, touchSamples, TouchLatencyProbe.maxSendNs / 1_000_000,
         )
         TouchLatencyProbe.maxSendNs = 0
-        Log.i(TAG, line)
         windowStartNs = now
         received = 0; rendered = 0; recoveries = 0; bytes = 0; maxArrivalGapNs = 0
         touchSamples = 0; touchLatencySumNs = 0; maxTouchLatencyNs = 0
@@ -60,8 +57,7 @@ internal class VideoStats(
     }
 
     private companion object {
-        const val TAG = "DiPlay-VideoStats"
-        const val WINDOW_NS = 5_000_000_000L
+        const val WINDOW_NS = 30_000_000_000L
         const val IDLE_GAP_NS = 2_000_000_000L // longer gaps are a static screen, not lag
     }
 }
