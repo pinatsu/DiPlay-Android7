@@ -137,6 +137,17 @@ sealed class CarPlayStatus {
         val startupFailure: WirelessStartupFailure? = null) : CarPlayStatus()
 }
 
+internal fun lockdownPairRecordRejection(error: Throwable): String? {
+    var cause: Throwable? = error
+    while (cause != null) {
+        val message = cause.message.orEmpty()
+        if (message.contains("InvalidPairRecord", ignoreCase = true)) return "InvalidPairRecord"
+        if (message.contains("InvalidHostID", ignoreCase = true)) return "InvalidHostID"
+        cause = cause.cause
+    }
+    return null
+}
+
 internal fun isWirelessHandoffInProgress(
     handoffRequested: Boolean,
     tunnelActive: Boolean,
@@ -159,9 +170,9 @@ class CarPlayController(
     listener: AirPlaySessionListener,
     private val media: AirPlayMediaHandler,
     reportStatus: (CarPlayStatus) -> Unit,
-    private val loadPairRecord: () -> LockdownPairRecord? = { null },
-    private val savePairRecord: (LockdownPairRecord) -> Unit = {},
-    private val clearPairRecord: () -> Unit = {},
+    private val loadPairRecord: (String) -> LockdownPairRecord? = { _ -> null },
+    private val savePairRecord: (String, LockdownPairRecord) -> Unit = { _, _ -> },
+    private val clearPairRecord: (String) -> Unit = {},
     private val locationProvider: Iap2LocationProvider? = null,
     private val vehicleStatusProvider: com.shilapi.xcertplay.transport.VehicleStatusProvider? = null,
 ) : Closeable {
@@ -1904,8 +1915,10 @@ class CarPlayController(
             debugLog("wired USBMUX host opened")
             onStatus(CarPlayStatus.Pairing)
             val pairingClient = LockdownPairingClient(mux)
-            val savedPairRecord = loadPairRecord()
-            var pairRecord = savedPairRecord ?: pairNewRecord(pairingClient)
+            val phoneIdentifier = pairingClient.deviceIdentifier(config.label)
+            debugLog("wired iPhone pairing identity resolved")
+            val savedPairRecord = loadPairRecord(phoneIdentifier)
+            var pairRecord = savedPairRecord ?: pairNewRecord(pairingClient, phoneIdentifier)
             debugLog(
                 if (savedPairRecord != null) {
                     "wired using saved Lockdown pair record"
@@ -1915,48 +1928,17 @@ class CarPlayController(
             )
             onStatus(CarPlayStatus.ConnectingControl)
             val carKitClient = LockdownCarKitClient(mux)
-            // Temporary lab capture, limited to accessory/authentication messages and two minutes.
-            try {
-                val relay = carKitClient.openService(pairRecord, config.label, "com.apple.syslog_relay")
-                Thread({
-                    try {
-                        relay.use {
-                            val deadline = System.nanoTime() + 120_000_000_000L
-                            val pending = StringBuilder()
-                            val relevant = Regex(" (accessoryd|ACCCarPlayService|iap2d|CarPlay)([\\[(])", RegexOption.IGNORE_CASE)
-                            while (!closed && System.nanoTime() < deadline) {
-                                val bytes = relay.recv(8192, 1000) ?: continue
-                                if (bytes.isEmpty()) break
-                                pending.append(bytes.toString(Charsets.UTF_8).replace('\u0000', '\n'))
-                                while (true) {
-                                    val end = pending.indexOf("\n")
-                                    if (end < 0) break
-                                    val line = pending.substring(0, end)
-                                    pending.delete(0, end + 1)
-                                    if (relevant.containsMatchIn(line)) debugLog("PHONE ${line.take(2000)}")
-                                }
-                                if (pending.length > 65536) pending.clear()
-                            }
-                        }
-                        debugLog("phone authentication diagnostic capture ended")
-                    } catch (error: Exception) {
-                        debugLog("phone authentication diagnostic capture ended: ${error.javaClass.simpleName}")
-                    }
-                }, "carplay-lab-phone-diagnostics").apply { isDaemon = true; start() }
-                debugLog("phone authentication diagnostic capture started")
-            } catch (error: Exception) {
-                debugLog("phone authentication diagnostics unavailable: ${error.message}")
-            }
             val carkit = try {
                 carKitClient.open(pairRecord, config.label)
             } catch (error: Throwable) {
                 val rejection = rejectedPairRecordError(error)
                 if (savedPairRecord == null || rejection == null) throw error
                 debugLog("saved Lockdown pair record rejected by Lockdown error=$rejection; clearing and pairing again")
-                clearPairRecord()
-                pairRecord = pairNewRecord(pairingClient)
+                clearPairRecord(phoneIdentifier)
+                pairRecord = pairNewRecord(pairingClient, phoneIdentifier)
                 carKitClient.open(pairRecord, config.label)
             }
+            savePairRecord(phoneIdentifier, pairRecord)
             debugLog("wired com.apple.carkit.service stream opened")
             val tracedCarkit = object : com.shilapi.xcertplay.transport.BlockingDuplexByteStream {
                 private val io = ConnectionIoDiagnostics(::connectionDiagnostic)
@@ -2054,25 +2036,17 @@ class CarPlayController(
         }
     }
 
-    private fun pairNewRecord(client: LockdownPairingClient): LockdownPairRecord =
+    private fun pairNewRecord(client: LockdownPairingClient, phoneIdentifier: String): LockdownPairRecord =
         client.pair(
             label = config.label,
             hostId = hostId,
             systemBuid = systemBuid,
             totalTimeoutMillis = PAIR_TIMEOUT_MILLIS,
             isCancelled = { closed },
-        ).pairRecord.also(savePairRecord)
+        ).pairRecord.also { savePairRecord(phoneIdentifier, it) }
 
-    private fun rejectedPairRecordError(error: Throwable): String? {
-        var cause: Throwable? = error
-        while (cause != null) {
-            val message = cause.message.orEmpty()
-            if (message.contains("InvalidPairRecord", ignoreCase = true)) return "InvalidPairRecord"
-            if (message.contains("InvalidHostID", ignoreCase = true)) return "InvalidHostID"
-            cause = cause.cause
-        }
-        return null
-    }
+    private fun rejectedPairRecordError(error: Throwable): String? =
+        lockdownPairRecordRejection(error)
 
     private fun isBluetoothHandoffCommand(type: String): Boolean =
         type.equals("disableBluetooth", ignoreCase = true) ||

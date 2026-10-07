@@ -25,11 +25,15 @@ class AudioFocusSettingsTest {
             .apply { isAccessible = true }.invoke(activity, page)
         activity.setContentView(page)
         val switches = views(page).filterIsInstance<Switch>().toList()
-        assertEquals(2, switches.size)
+        assertEquals(3, switches.size)
         val focus = switches.single { it.contentDescription == activity.getString(R.string.contrib_audio_home_toggle_audio_focus) }
         val mute = switches.single { it.contentDescription == activity.getString(R.string.audio_focus_auto_yield) }
+        val navigation = switches.single {
+            it.contentDescription == activity.getString(R.string.contrib_audio_home_toggle_navigation_ducking)
+        }
         val dependent = mute.parent.parent as View
         assertEquals(View.GONE, dependent.visibility)
+        assertEquals(View.VISIBLE, (navigation.parent.parent as View).visibility)
         focus.isChecked = true
         assertEquals(View.VISIBLE, dependent.visibility)
         assertFalse(mute.isChecked)

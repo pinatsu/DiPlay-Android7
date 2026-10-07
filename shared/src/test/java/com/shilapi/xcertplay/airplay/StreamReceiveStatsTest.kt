@@ -19,8 +19,11 @@ class StreamReceiveStatsTest {
         packet(7, 10) // Two more missing packets follow a short socket wait.
         packet(8, 400) // A long read alone does not imply packet loss.
         stats.flush(ended = true)
-        assertEquals(1, output.size)
-        assertTrue(output.single().contains("windowMs=720 readsOver250Ms=2 seqGapAfterReadOver250Ms=1 seqMissingAfterReadOver250Ms=2"))
+        assertEquals(3, output.size)
+        assertTrue(output[0].contains("windowMs=310 readsOver250Ms=1 seqGapAfterReadOver250Ms=1 seqMissingAfterReadOver250Ms=2"))
+        assertTrue(output[1].contains("windowMs=10 readsOver250Ms=0 seqGapAfterReadOver250Ms=0 seqMissingAfterReadOver250Ms=0"))
+        assertTrue(output[2].contains("windowMs=400 readsOver250Ms=1"))
+        assertTrue(output[2].contains("seqForwardGaps=0"))
         packet(9, 10)
         stats.flush(ended = true)
         assertTrue(output.last().contains("windowMs=10 readsOver250Ms=0 seqGapAfterReadOver250Ms=0 seqMissingAfterReadOver250Ms=0"))

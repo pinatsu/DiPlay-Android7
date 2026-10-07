@@ -1,21 +1,21 @@
 package com.shilapi.xcertplay.orchestration
 
 import java.io.IOException
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class LockdownPairRecordErrorTest {
     @Test fun invalidHostIdTriggersRepair() {
-        assertTrue(isInvalidLockdownPairRecord(IOException("StartSession failed: InvalidHostID")))
+        assertEquals("InvalidHostID", lockdownPairRecordRejection(IOException("StartSession failed: InvalidHostID")))
     }
 
     @Test fun invalidPairRecordTriggersRepairThroughCauseChain() {
         val cause = IOException("Lockdown rejected InvalidPairRecord")
-        assertTrue(isInvalidLockdownPairRecord(IllegalStateException("open failed", cause)))
+        assertEquals("InvalidPairRecord", lockdownPairRecordRejection(IllegalStateException("open failed", cause)))
     }
 
     @Test fun unrelatedProtocolErrorDoesNotDiscardRecord() {
-        assertFalse(isInvalidLockdownPairRecord(IOException("StartService timed out")))
+        assertNull(lockdownPairRecordRejection(IOException("StartService timed out")))
     }
 }

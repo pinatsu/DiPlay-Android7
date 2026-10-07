@@ -1518,7 +1518,6 @@ private class AudioRenderer(
                 "inputQueuedTotal=$inputQueued inputDroppedTotal=$inputDropped " +
                 "shortOpusPacketsTotal=$shortOpusPackets decoderUnavailablePacketsTotal=$decoderUnavailablePackets " +
                 "outputBuffersTotal=$outputBuffers ended=$force"
-            Log.i(STATS_TAG, decoderLine)
             runCatching { report(decoderLine) }
         }
         statsLastUnderruns = underruns
