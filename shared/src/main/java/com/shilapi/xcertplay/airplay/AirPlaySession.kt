@@ -568,7 +568,15 @@ class AirPlaySession(
                     TAG,
                     "airplay /info features=${info["features"]} " +
                         "audioFormats=${(info["audioFormats"] as? List<*>)?.size ?: 0} " +
-                        "audioLatencies=${(info["audioLatencies"] as? List<*>)?.size ?: 0}",
+                        "audioLatencies=${(info["audioLatencies"] as? List<*>)?.size ?: 0} " +
+                        "transport=${if (config.wirelessAudio) "WIRELESS" else "WIRED"} " +
+                        "type101Formats=${(info["audioFormats"] as? List<*>)
+                            ?.mapNotNull { it as? Map<*, *> }
+                            ?.filter { it["type"] == 101 }
+                            ?.joinToString(prefix = "[", postfix = "]") {
+                                "${it["audioType"]}=0x${(it["audioOutputFormats"] as? Number)?.toInt()?.toString(16)}"
+                            } ?: "[]"} " +
+                        "wired48kOnly=${config.wiredType10148kOnly}",
                 )
                 debugLog(
                     "airplay /info videoInCar=${config.videoInCar} " +

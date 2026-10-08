@@ -2400,7 +2400,7 @@ class CarPlayController(
                 ncm = ncm,
                 linkLocal = config.linkLocal,
                 hostMac = hostMac,
-                config = airPlayConfig,
+                config = airPlayConfig.copy(wirelessAudio = false),
                 identity = identity,
                 pairings = pairings,
                 mfi = mfiSession?.client,
