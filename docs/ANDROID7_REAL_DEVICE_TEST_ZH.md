@@ -3,8 +3,8 @@
 本指南适用于本分支 Android 7.1 / API 25 构建。请以实际下载的 APK 和发布说明为准：
 
 - APK：以下示例使用 `DiPlay-Android7.apk`，安装时替换为实际文件名；
-- release 包名：`com.shihab.diplay`；debug/测试包名：`com.shihab.diplay.hudtest`；
-- 当前源码版本：`0.2.13`，debug 版本带 `-hud-test` 后缀；
+- release 包名：`io.github.pinatsu.diplay.android7`；debug/测试包名：`io.github.pinatsu.diplay.android7.hudtest`；
+- 当前分支版本：`0.2.13-android7-r14`（versionCode `3214`），debug 版本另带 `-hud-test` 后缀；
 - 支持的无线方式：车机自身热点（手动填写热点信息）
 
 本分支已进行 API 25 模拟器测试、维护者车机的有线测试以及较新 Android 平板测试。这些结果不保证其他固件可用，也不能证明目标车机的完整无线流程。最新构建仍需回归测试 USB 插拔、多手机切换、音频、触摸和断线恢复；所有测试应在停车状态下进行。
@@ -49,10 +49,10 @@ adb install -r "DiPlay-Android7.apk"
 如果提示签名不一致，不要直接卸载：卸载会清除旧版设置和数据。先记录报错并决定是否需要备份后再卸载。安装成功后执行：
 
 ```bash
-adb shell am start -W -n com.shihab.diplay.hudtest/com.shilapi.xcertplay.DiPlayActivity
+adb shell am start -W -n io.github.pinatsu.diplay.android7.hudtest/com.shilapi.xcertplay.DiPlayActivity
 ```
 
-上面的启动命令适用于 debug/测试包。release 包请将组件前面的包名改为 `com.shihab.diplay`，活动类名保持不变。
+上面的启动命令适用于 debug/测试包。release 包请将组件前面的包名改为 `io.github.pinatsu.diplay.android7`，活动类名保持不变。
 
 预期：应用在 10 秒内打开，无闪退、黑屏或系统反复弹出“已停止运行”。
 
@@ -147,7 +147,7 @@ chmod +x scripts/collect-android7-diagnostics.sh
 如果安装的是正式包而非当前测试包，执行：
 
 ```bash
-DIPLAY_PACKAGE=com.shihab.diplay ./scripts/collect-android7-diagnostics.sh
+DIPLAY_PACKAGE=io.github.pinatsu.diplay.android7 ./scripts/collect-android7-diagnostics.sh
 ```
 
 ## 9. 隐私与提交内容

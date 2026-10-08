@@ -11,7 +11,7 @@
 
 ## 项目状态
 
-当前兼容基线为上游提交 `e2fd8ea`（`v0.2.13-51-ge2fd8ea`，位于 DiPlay 0.2.13 标签之后 51 个提交），将最低系统要求从 Android 9（API 28）降到 Android 7.1（API 25）。在较新 Android 版本上尽量保持上游行为，在 Android 7 上通过受保护的兼容路径运行。此后的上游提交需要另外同步和验证。
+当前分支版本为 `0.2.13-android7-r14`，兼容基线为上游提交 `e2fd8ea`（`v0.2.13-51-ge2fd8ea`，位于 DiPlay 0.2.13 标签之后 51 个提交）。本分支将最低系统要求从 Android 9（API 28）降到 Android 7.1（API 25），在较新 Android 版本上尽量保持上游行为，在 Android 7 上通过受保护的兼容路径运行。此后的上游提交需要另外同步和验证。
 
 | 环境 | 当前状态 |
 | --- | --- |
@@ -51,6 +51,8 @@ adb install -r DiPlay-Android7.apk
 
 覆盖更新要求包名和 Android 签名证书保持一致。在不再需要旧版设置和诊断报告之前，不要卸载已经可以工作的版本。
 
+本分支使用独立包名 `io.github.pinatsu.diplay.android7`，可以与上游 DiPlay（`com.shihab.diplay`）共存；两者的设置和手机配对记录也彼此独立。
+
 ### 老车机建议起始设置
 
 - 30 fps
@@ -77,7 +79,7 @@ Android 7 上的无线 CarPlay 仍然是实验功能。目标车机可以开启�
 
 ## 已知限制
 
-- 有线连接意外断开后，应用可能返回准备连接页，但必须拔插 USB 线才能恢复连接，原因仍在调查。
+- 在已测试的平板上，本分支可以通过 USB reset 和重新枚举建立新的有线会话，无需拔线；如果车机内核拒绝 USB reset，仍可能需要物理拔插。
 - Android 7 固件可能不发送 USB 拔出广播。本分支会额外轮询当前 iPhone，在设备消失时关闭残留的 CarPlay 画面；仍需在目标车机上反复验证。
 - 旧固件可能对导航、音乐、通话和麦克风使用不同的音频路由。导航压低音乐开关不能保证系统路由正确或听感音量一致。
 - 在较新 Android 平板上连接成功，不能证明 Android 7.1 车机也兼容。
@@ -95,10 +97,10 @@ CarPlay 媒体使用媒体音频路径。Android 7 通过旧版 `STREAM_MUSIC` �
 连接开发电脑后还可以运行：
 
 ```sh
-DIPLAY_PACKAGE=com.shihab.diplay ./scripts/collect-android7-diagnostics.sh
+DIPLAY_PACKAGE=io.github.pinatsu.diplay.android7 ./scripts/collect-android7-diagnostics.sh
 ```
 
-如果安装的是 debug/测试包，请改用 `DIPLAY_PACKAGE=com.shihab.diplay.hudtest`。脚本可以收集 logcat、崩溃缓冲区、USB/网络状态和 Android bugreport。完整 bugreport 可能包含大量隐私信息，未经人工检查不应公开上传。完整流程见 [Android 7.1 实机测试指南](docs/ANDROID7_REAL_DEVICE_TEST_ZH.md)。
+如果安装的是 debug/测试包，请改用 `DIPLAY_PACKAGE=io.github.pinatsu.diplay.android7.hudtest`。脚本可以收集 logcat、崩溃缓冲区、USB/网络状态和 Android bugreport。完整 bugreport 可能包含大量隐私信息，未经人工检查不应公开上传。完整流程见 [Android 7.1 实机测试指南](docs/ANDROID7_REAL_DEVICE_TEST_ZH.md)。
 
 提交问题时请附上车机型号和固件、Android 版本、iPhone 和 iOS 版本、有线/无线连接方式、准确复现步骤以及大致故障时间。
 

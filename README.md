@@ -11,7 +11,7 @@ CarPlay for Android 7.1 head units, based on [DiPlay](https://github.com/shihaba
 
 ## Project status
 
-The current compatibility baseline is upstream commit `e2fd8ea` (`v0.2.13-51-ge2fd8ea`, 51 commits after the DiPlay 0.2.13 tag). This branch lowers the app requirement from Android 9 (API 28) to Android 7.1 (API 25). It keeps upstream behavior on newer Android versions where possible and adds guarded compatibility paths for Android 7. Later upstream commits require separate integration and validation.
+The current fork release is `0.2.13-android7-r14`. Its compatibility baseline is upstream commit `e2fd8ea` (`v0.2.13-51-ge2fd8ea`, 51 commits after the DiPlay 0.2.13 tag). This branch lowers the app requirement from Android 9 (API 28) to Android 7.1 (API 25). It keeps upstream behavior on newer Android versions where possible and adds guarded compatibility paths for Android 7. Later upstream commits require separate integration and validation.
 
 | Environment | Status |
 | --- | --- |
@@ -51,6 +51,8 @@ adb install -r DiPlay-Android7.apk
 
 An in-place update requires the same package name and Android signing certificate. Do not uninstall an existing working build until its settings and diagnostic reports are no longer needed.
 
+This fork uses the independent package name `io.github.pinatsu.diplay.android7`, so it can coexist with upstream DiPlay (`com.shihab.diplay`). Its settings and pairing records are also independent.
+
 ### Suggested starting settings for older head units
 
 - 30 fps
@@ -77,7 +79,7 @@ Do not choose this fork solely on the expectation that wireless CarPlay will wor
 
 ## Known limitations
 
-- After an unexpected wired disconnect, the app may return to the waiting screen without reconnecting until the USB cable is unplugged and reinserted. The cause remains under investigation.
+- The fork can reset and re-enumerate USB for a new wired session without unplugging on the tested tablet. Head-unit kernels that reject the USB reset may still require a physical reconnect.
 - Android 7 firmware can omit the USB-detached broadcast. This fork polls for the active iPhone as a fallback so the stale CarPlay screen can be closed; the behavior still needs repeated validation on the target head unit.
 - Older firmware may route navigation, media, calls, and microphone audio differently. The navigation ducking setting does not guarantee correct system routing or equal perceived loudness.
 - A successful connection on a newer Android tablet does not establish compatibility with the Android 7.1 head unit.
@@ -95,10 +97,10 @@ For app-level reports, open **Settings → Diagnostics → Save diagnostic repor
 For a connected development machine:
 
 ```sh
-DIPLAY_PACKAGE=com.shihab.diplay ./scripts/collect-android7-diagnostics.sh
+DIPLAY_PACKAGE=io.github.pinatsu.diplay.android7 ./scripts/collect-android7-diagnostics.sh
 ```
 
-For a debug/test APK, use `DIPLAY_PACKAGE=com.shihab.diplay.hudtest` instead. The script can collect logcat, crash buffers, USB/network state, and an Android bug report. Full bug reports can contain sensitive information and should not be attached publicly without manual review. See the [Android 7.1 real-device test guide](docs/ANDROID7_REAL_DEVICE_TEST_ZH.md) for the complete workflow.
+For a debug/test APK, use `DIPLAY_PACKAGE=io.github.pinatsu.diplay.android7.hudtest` instead. The script can collect logcat, crash buffers, USB/network state, and an Android bug report. Full bug reports can contain sensitive information and should not be attached publicly without manual review. See the [Android 7.1 real-device test guide](docs/ANDROID7_REAL_DEVICE_TEST_ZH.md) for the complete workflow.
 
 When reporting a problem, include the head-unit model and firmware, Android version, iPhone and iOS version, wired/wireless mode, exact reproduction steps, and the approximate failure time.
 

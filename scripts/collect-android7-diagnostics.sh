@@ -6,7 +6,7 @@
 
 set -u
 
-PACKAGE="${DIPLAY_PACKAGE:-com.shihab.diplay.hudtest}"
+PACKAGE="${DIPLAY_PACKAGE:-io.github.pinatsu.diplay.android7.hudtest}"
 ACTIVITY="${DIPLAY_ACTIVITY:-com.shilapi.xcertplay.DiPlayActivity}"
 ADB_BIN="${ADB:-adb}"
 STAMP="$(date '+%Y%m%d-%H%M%S')"
@@ -99,4 +99,3 @@ esac
 printf 'Capture finished: %s\n' "$(date '+%Y-%m-%d %H:%M:%S %z')" >>"$OUTPUT_DIR/summary.txt"
 printf '\nDone: %s\n' "$OUTPUT_DIR"
 printf 'Before sharing, review the files: full logcat and bugreport can contain device, Wi-Fi, location, account, and notification data.\n'
-
