@@ -391,8 +391,7 @@ class DiPlayActivity : ComponentActivity() {
             card.addView(buttonRow)
 
             disconnectButton = button(getString(R.string.disconnect), false) {
-                disconnectButton?.isEnabled = false
-                CarPlayBackgroundSession.stop { runOnUiThread { refreshStatus() } }
+                disconnectFromCarPlay()
             }.apply { visibility = View.GONE }
             card.addView(disconnectButton, matchButton(8, 38))
 
@@ -437,8 +436,7 @@ class DiPlayActivity : ComponentActivity() {
         }
         card.addView(button(getString(R.string.choose_iphone), false) { choosePhone() }, matchButton(16, 56))
         disconnectButton = button(getString(R.string.disconnect), false) {
-            disconnectButton?.isEnabled = false
-            CarPlayBackgroundSession.stop { runOnUiThread { refreshStatus() } }
+            disconnectFromCarPlay()
         }.apply { visibility = View.GONE }
         card.addView(disconnectButton, matchButton(10, 56))
         val right = column().apply { gravity = Gravity.CENTER_HORIZONTAL }
@@ -2944,8 +2942,20 @@ class DiPlayActivity : ComponentActivity() {
             AirPlayPersistence.saveWirelessEnabled(this, wireless)
             openProjection()
         }
-        if (CarPlayBackgroundSession.hasSession()) CarPlayBackgroundSession.stop { runOnUiThread { open() } }
-        else open()
+        if (CarPlayBackgroundSession.hasSession()) {
+            WiredSoftwareReconnect.prepareForRestart(
+                currentTransportWireless = AirPlayPersistence.loadWirelessEnabled(this),
+                nextTransportWireless = wireless,
+            )
+            CarPlayBackgroundSession.stop { runOnUiThread { open() } }
+        } else open()
+    }
+
+    private fun disconnectFromCarPlay() {
+        disconnectButton?.isEnabled = false
+        val wireless = AirPlayPersistence.loadWirelessEnabled(this)
+        WiredSoftwareReconnect.prepareForRestart(wireless, wireless)
+        CarPlayBackgroundSession.stop { runOnUiThread { refreshStatus() } }
     }
     private fun openProjection() {
         startActivity(Intent(this, CarPlayHostActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT))

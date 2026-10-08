@@ -114,7 +114,10 @@ class CarPlayVpnService : VpnService() {
             val address = resolveScopedAddress(unscopedAddress)
             Log.i(TAG, "VPN address ready: ${address.hostAddress}")
 
-            val ipv6Bridge = Ipv6NcmBridge(ncm, tunFd, hostMac) { error ->
+            val ipv6Bridge = Ipv6NcmBridge(
+                ncm, tunFd, hostMac,
+                diagnosticsEnabled = (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0,
+            ) { error ->
                 onTransportError(generation, listener, error)
             }
             ipv6Bridge.start()

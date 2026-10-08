@@ -57,6 +57,8 @@ class CarPlayRuntimeConfig(
     val label: String = "xcertplay",
     val hostName: String = "xcertplay",
     val transport: CarPlayTransport = CarPlayTransport.WIRED,
+    /** One-shot USB reset requested when a wired software session replaces another wired session. */
+    val forceWiredReenumeration: Boolean = false,
     val wirelessHotspotMode: WirelessHotspotMode = WirelessHotspotMode.WIFI_P2P,
     val manualHotspotSsid: String? = null,
     val manualHotspotPassphrase: String? = null,

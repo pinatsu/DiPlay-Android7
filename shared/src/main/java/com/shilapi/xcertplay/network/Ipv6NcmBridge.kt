@@ -23,6 +23,7 @@ class Ipv6NcmBridge(
     private val ncm: NcmUsbBridge,
     private val tun: ParcelFileDescriptor,
     private val hostMac: ByteArray,
+    private val diagnosticsEnabled: Boolean = false,
     private val onError: (Throwable) -> Unit,
 ) : Closeable {
     init {
@@ -36,6 +37,10 @@ class Ipv6NcmBridge(
     private var loggedWaitingForPeer = false
     private var inboundLogBudget = 16
     private var outboundLogBudget = 24
+    private var inboundDiagnosticBudget = 96
+    private var outboundDiagnosticBudget = 96
+    private val diagnosticStartedNanos = System.nanoTime()
+    private val diagnosticId = java.lang.Long.toHexString(diagnosticStartedNanos)
     private val running = AtomicBoolean(false)
     private lateinit var ncmToTunThread: Thread
     private lateinit var tunToNcmThread: Thread
@@ -67,6 +72,10 @@ class Ipv6NcmBridge(
                 val frame = ncm.recv(READ_TIMEOUT_MILLIS) ?: continue
                 val ipv6 = EthernetIpv6Codec.parseIpv6View(frame) ?: continue
                 peerMac = ipv6.sourceMac
+                if (diagnosticsActive() && inboundDiagnosticBudget > 0) {
+                    inboundDiagnosticBudget--
+                    diagnostic("rx ${frame.summary(ipv6.payloadOffset)}")
+                }
                 if (!loggedInbound) {
                     loggedInbound = true
                     Log.i(
@@ -115,7 +124,11 @@ class Ipv6NcmBridge(
                 }
                 val multicastMac = EthernetIpv6Codec.multicastDestinationMac(ipv6)
                 val mac = multicastMac ?: peerMac
+                val trace = diagnosticsActive() && outboundDiagnosticBudget > 0
+                val packetSummary = if (trace) ipv6.summary(0) else null
+                if (trace) outboundDiagnosticBudget--
                 if (mac == null) {
+                    if (trace) diagnostic("tx skipped=peer-unknown $packetSummary")
                     if (!loggedWaitingForPeer) {
                         loggedWaitingForPeer = true
                         Log.i(TAG, "ncm deferred outbound unicast bytes=$length until peer MAC is learned")
@@ -130,7 +143,19 @@ class Ipv6NcmBridge(
                     )
                 }
                 val frame = EthernetIpv6Codec.build(hostMac, mac, ipv6)
-                ncm.send(frame, WRITE_TIMEOUT_MILLIS)
+                if (trace) {
+                    val started = System.nanoTime()
+                    diagnostic("tx begin $packetSummary")
+                    ncm.send(frame, WRITE_TIMEOUT_MILLIS) { transferred, expected ->
+                        val elapsedMs = (System.nanoTime() - started) / 1_000_000
+                        diagnostic(
+                            "tx result=$transferred expected=$expected elapsedMs=$elapsedMs " +
+                                "ok=${transferred == expected} $packetSummary",
+                        )
+                    }
+                } else {
+                    ncm.send(frame, WRITE_TIMEOUT_MILLIS)
+                }
             }
         } catch (error: IOException) {
             if (running.get()) onError(error)
@@ -149,6 +174,14 @@ class Ipv6NcmBridge(
         if (thread.isAlive) thread.interrupt()
     }
 
+    private fun diagnosticsActive(): Boolean = diagnosticsEnabled &&
+        System.nanoTime() - diagnosticStartedNanos < 30_000_000_000L
+
+    private fun diagnostic(message: String) {
+        val elapsedMs = (System.nanoTime() - diagnosticStartedNanos) / 1_000_000
+        Log.i(TAG, "ncm-diag id=$diagnosticId tMs=$elapsedMs $message")
+    }
+
     private fun ByteArray.macString(): String =
         joinToString(":") { byte -> "%02x".format(byte.toInt() and 0xff) }
 
@@ -159,7 +192,8 @@ class Ipv6NcmBridge(
         val destination = InetAddress.getByAddress(copyOfRange(offset + 24, offset + 40)).hostAddress
         val nextHeader = this[offset + 6].toInt() and 0xff
         val detail = when {
-            nextHeader == 6 && payloadBytes >= 44 -> " tcp=${u16(offset + 40)}->${u16(offset + 42)}"
+            nextHeader == 6 && payloadBytes >= 44 -> " tcp=${u16(offset + 40)}->${u16(offset + 42)}" +
+                (if (diagnosticsEnabled) TcpHandshakeSummary.describe(this, offset + 40) else "")
             nextHeader == 17 && payloadBytes >= 44 -> " udp=${u16(offset + 40)}->${u16(offset + 42)}"
             nextHeader == 58 && payloadBytes >= 41 -> " icmp6=${this[offset + 40].toInt() and 0xff}"
             else -> ""

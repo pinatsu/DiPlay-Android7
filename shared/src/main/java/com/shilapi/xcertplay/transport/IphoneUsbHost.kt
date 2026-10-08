@@ -58,10 +58,10 @@ class IphoneUsbMatcher private constructor(
  * Android USB Host bring-up boundary for a configured iPhone identity.
  *
  * LIVI's fixed commit uses Apple vendor request `0x52`, value `0`, index `4`, and then selects
- * configuration `6`. The vendor request can make the iPhone re-enumerate. Android does not offer
- * Linux sysfs configuration control or a synchronous re-enumeration primitive, so this class
- * closes the first connection and requires the caller to receive, re-authorize, and pass the new
- * [UsbDevice] to [selectCarPlayConfigurationAsync]. All opens run on the supplied executor.
+ * configuration `6`. The vendor request can make the iPhone re-enumerate. Android's public USB
+ * API does not offer a reset or synchronous re-enumeration primitive, so the explicit software
+ * reconnect path uses a narrowly scoped usbfs reset and all paths still rediscover and re-authorize
+ * the resulting [UsbDevice]. All opens run on the supplied executor.
  */
 class IphoneUsbHost(
     context: Context,
@@ -87,6 +87,12 @@ class IphoneUsbHost(
         data object ReenumerationRequested : TransitionResult()
 
         data class Failed(val error: IphoneUsbException) : TransitionResult()
+    }
+
+    sealed class ResetResult {
+        data object ResetCompleted : ResetResult()
+
+        data class Failed(val error: IphoneUsbException) : ResetResult()
     }
 
     sealed class Iap2SessionResult {
@@ -163,6 +169,43 @@ class IphoneUsbHost(
                 }
                 TransitionResult.ReenumerationRequested
             })
+        }
+    }
+
+    /**
+     * Resets the physical USB device through usbfs. iOS returns to its default USB mode after a
+     * reset, allowing the existing mode-4 vendor request to start a genuinely new CarPlay USB
+     * attachment without requiring the cable to be unplugged.
+     */
+    fun resetUsbDeviceAsync(
+        device: UsbDevice,
+        executor: Executor,
+        callback: (ResetResult) -> Unit,
+    ) {
+        executor.execute {
+            val result = try {
+                requireConfiguredDevice(device)
+                if (!usbManager.hasPermission(device)) {
+                    throw IphoneUsbException.PermissionDenied("USB permission has not been granted")
+                }
+                val connection = usbManager.openDevice(device)
+                    ?: throw IphoneUsbException.DeviceUnavailable("UsbManager could not open the iPhone for reset")
+                try {
+                    UsbDeviceReset.reset(connection)
+                    ResetResult.ResetCompleted
+                } finally {
+                    connection.close()
+                }
+            } catch (error: IphoneUsbException) {
+                ResetResult.Failed(error)
+            } catch (error: SecurityException) {
+                ResetResult.Failed(IphoneUsbException.PermissionDenied("USB reset permission was denied", error))
+            } catch (error: IOException) {
+                ResetResult.Failed(IphoneUsbException.DeviceUnavailable(error.message ?: "USB reset failed", error))
+            } catch (error: RuntimeException) {
+                ResetResult.Failed(IphoneUsbException.DeviceUnavailable("iPhone USB reset failed", error))
+            }
+            callback(result)
         }
     }
 
@@ -501,5 +544,5 @@ sealed class IphoneUsbException(message: String, cause: Throwable? = null) : IOE
     class PermissionDenied(message: String, cause: Throwable? = null) : IphoneUsbException(message, cause)
     class DeviceUnavailable(message: String, cause: Throwable? = null) : IphoneUsbException(message, cause)
     class TimedOut(message: String, cause: Throwable? = null) : IphoneUsbException(message, cause)
-    class Protocol(message: String) : IphoneUsbException(message)
+    class Protocol(message: String, cause: Throwable? = null) : IphoneUsbException(message, cause)
 }

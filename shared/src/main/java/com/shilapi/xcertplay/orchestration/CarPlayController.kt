@@ -154,6 +154,12 @@ internal fun isWirelessHandoffInProgress(
     sessionActive: Boolean,
 ): Boolean = handoffRequested || tunnelActive || sessionActive
 
+internal fun shouldForceWiredReenumeration(
+    configurationReady: Boolean,
+    requestedAfterSoftwareRestart: Boolean,
+    reenumerationAttempts: Int,
+): Boolean = configurationReady && requestedAfterSoftwareRestart && reenumerationAttempts == 0
+
 /**
  * Wires the complete wired or wireless CarPlay path: MFi coprocessor discovery, iPhone bring-up,
  * iAP2 control, transport setup, and the AirPlay media/input sessions.
@@ -216,6 +222,9 @@ class CarPlayController(
     @Volatile private var uiStatusReporter: ((CarPlayStatus) -> Unit)? = reportStatus
     private val permissionGrant = AtomicBoolean(false)
     private val availabilityPollGeneration = AtomicInteger(0)
+    private val wiredPresenceGeneration = AtomicInteger(0)
+    private val reenumerationTimeoutGeneration = AtomicInteger(0)
+    private val usbResetAwaitingModeRequest = AtomicBoolean(false)
     private var permissionPollGeneration = 0
     private var reenumerationAttempts = 0
     private var lastReportedStatus: CarPlayStatus? = null
@@ -612,6 +621,7 @@ class CarPlayController(
         BydNavigationOutputs.clearClusterStreamControl(::applyClusterUi)
         closeReceivers()
         availabilityPollGeneration.incrementAndGet()
+        wiredPresenceGeneration.incrementAndGet()
         wirelessGeneration.incrementAndGet()
         permissionPollGeneration += 1
         touchExecutor.shutdownNow()
@@ -1710,6 +1720,7 @@ class CarPlayController(
     private fun startIphone() {
         diagnosticRun.incrementAndGet()
         availabilityPollGeneration.incrementAndGet()
+        wiredPresenceGeneration.incrementAndGet()
         phase = Phase.IPHONE
         reenumerationAttempts = 0
         onStatus(CarPlayStatus.DiscoveringIphone)
@@ -1766,18 +1777,45 @@ class CarPlayController(
                 permissionPollGeneration++
                 when (phase) {
                     Phase.REENUMERATION, Phase.IPHONE -> {
+                        if (phase == Phase.REENUMERATION) {
+                            reenumerationTimeoutGeneration.incrementAndGet()
+                        }
                         val configuration = IphoneCarPlayConfiguration.find(result.device)
+                        if (usbResetAwaitingModeRequest.compareAndSet(true, false)) {
+                            connectionDiagnostic(
+                                "USB_RESET_DEFAULT_MODE_READY device=${result.device.deviceName} " +
+                                    "configurationId=${configuration?.id ?: "none"}",
+                            )
+                            beginReenumeration(result.device)
+                            return
+                        }
                         connectionDiagnostic(
                             "USB configuration ready=${configuration != null} " +
                                 "configurationId=${configuration?.id ?: "none"} " +
                                 "reenumerationAttempts=$reenumerationAttempts " +
                                 "action=${when {
+                                    shouldForceWiredReenumeration(
+                                        configuration != null,
+                                        config.forceWiredReenumeration,
+                                        reenumerationAttempts,
+                                    ) ->
+                                        "reset-usb-after-software-disconnect"
                                     configuration != null -> "reuse-descriptors"
                                     reenumerationAttempts < MAXIMUM_REENUMERATION_ATTEMPTS -> "request-transition"
                                     else -> "reject-missing-configuration"
                                 }}",
                         )
-                        if (configuration != null) {
+                        if (shouldForceWiredReenumeration(
+                                configuration != null,
+                                config.forceWiredReenumeration,
+                                reenumerationAttempts,
+                            )) {
+                            connectionDiagnostic(
+                                "USB software reconnect resetting device " +
+                                    "device=${result.device.deviceName}",
+                            )
+                            beginUsbReset(result.device)
+                        } else if (configuration != null) {
                             openDataPaths(result.device)
                         } else if (reenumerationAttempts < MAXIMUM_REENUMERATION_ATTEMPTS) {
                             beginReenumeration(result.device)
@@ -1834,10 +1872,88 @@ class CarPlayController(
         iphoneHost.requestCarPlayReenumerationAsync(device, executor) { transition ->
             when (transition) {
                 IphoneUsbHost.TransitionResult.ReenumerationRequested ->
-                    onStatus(CarPlayStatus.WaitingForReenumeration)
+                    run {
+                        onStatus(CarPlayStatus.WaitingForReenumeration)
+                        scheduleReenumerationTimeout(
+                            "MODE4_REENUMERATION_TIMEOUT",
+                            MODE4_REENUMERATION_TIMEOUT_MILLIS,
+                        )
+                    }
                 is IphoneUsbHost.TransitionResult.Failed -> fail(transition.error)
             }
         }
+    }
+
+    private fun beginUsbReset(device: UsbDevice) {
+        phase = Phase.REENUMERATION
+        usbResetAwaitingModeRequest.set(true)
+        reenumerationTimeoutGeneration.incrementAndGet()
+        connectionDiagnostic("USB_RESET_BEGIN device=${device.deviceName}")
+        onStatus(CarPlayStatus.WaitingForReenumeration)
+        iphoneHost.resetUsbDeviceAsync(device, executor) { reset ->
+            when (reset) {
+                IphoneUsbHost.ResetResult.ResetCompleted -> {
+                    connectionDiagnostic("USB_RESET_OK device=${device.deviceName}")
+                    schedulePostResetDiscovery()
+                    scheduleReenumerationTimeout(
+                        "USB_RESET_DEVICE_DISCOVERY_TIMEOUT",
+                        USB_RESET_DISCOVERY_TIMEOUT_MILLIS,
+                    )
+                }
+                is IphoneUsbHost.ResetResult.Failed -> {
+                    usbResetAwaitingModeRequest.set(false)
+                    connectionDiagnostic(
+                        "USB_RESET_FAILED class=${reset.error.javaClass.simpleName} " +
+                            "message=${reset.error.message}",
+                    )
+                    fail(reset.error)
+                }
+            }
+        }
+    }
+
+    private fun schedulePostResetDiscovery() {
+        val generation = availabilityPollGeneration.incrementAndGet()
+        val deadlineNanos = System.nanoTime() + USB_RESET_DISCOVERY_TIMEOUT_MILLIS * 1_000_000L
+        val poll = object : Runnable {
+            override fun run() {
+                if (
+                    closed || phase != Phase.REENUMERATION ||
+                    generation != availabilityPollGeneration.get() ||
+                    !usbResetAwaitingModeRequest.get()
+                ) return
+                val device = iphoneHost.discover().firstOrNull()
+                if (device != null) {
+                    connectionDiagnostic("USB_RESET_REDISCOVERED device=${device.deviceName}")
+                    requestIphonePermission(device)
+                    return
+                }
+                if (System.nanoTime() < deadlineNanos) {
+                    mainHandler.postDelayed(this, USB_RESET_DISCOVERY_POLL_INTERVAL_MILLIS)
+                }
+            }
+        }
+        mainHandler.postDelayed(poll, USB_RESET_SETTLE_MILLIS)
+    }
+
+    private fun scheduleReenumerationTimeout(label: String, timeoutMillis: Long) {
+        if (!config.forceWiredReenumeration) return
+        val generation = reenumerationTimeoutGeneration.incrementAndGet()
+        mainHandler.postDelayed(
+            {
+                if (!closed && phase == Phase.REENUMERATION &&
+                    generation == reenumerationTimeoutGeneration.get()) {
+                    usbResetAwaitingModeRequest.set(false)
+                    connectionDiagnostic(label)
+                    fail(
+                        IphoneUsbException.DeviceUnavailable(
+                            "USB software reconnect timed out; unplug and reconnect the iPhone",
+                        ),
+                    )
+                }
+            },
+            timeoutMillis,
+        )
     }
 
     private fun onIphoneAttached(device: UsbDevice) {
@@ -1867,6 +1983,8 @@ class CarPlayController(
     }
 
     private fun openDataPaths(device: UsbDevice) {
+        reenumerationTimeoutGeneration.incrementAndGet()
+        usbResetAwaitingModeRequest.set(false)
         phase = Phase.DATAPATHS
         debugLog("wired opening iPhone USB data paths")
         onStatus(CarPlayStatus.SelectingConfiguration)
@@ -1876,7 +1994,7 @@ class CarPlayController(
                 is IphoneUsbHost.Iap2SessionResult.Connected -> {
                     try {
                         val ncm = openNcm(device)
-                        runStack(result.session, ncm)
+                        runStack(result.session, ncm, device.deviceName)
                     } catch (error: Throwable) {
                         result.session.close()
                         fail(error)
@@ -1905,7 +2023,7 @@ class CarPlayController(
         return NcmUsbBridge.open(connection, function, onDiagnostic = ::connectionDiagnostic)
     }
 
-    private fun runStack(usbSession: Iap2UsbSession, ncm: NcmUsbBridge) {
+    private fun runStack(usbSession: Iap2UsbSession, ncm: NcmUsbBridge, deviceName: String) {
         phase = Phase.CONTROL
         var ncmOwnedLocally = true
         try {
@@ -1913,6 +2031,7 @@ class CarPlayController(
             val mux = Iap2UsbMuxHost.open(usbSession, onDiagnostic = ::connectionDiagnostic)
             this.mux = mux
             debugLog("wired USBMUX host opened")
+            startWiredPresenceWatchdog(deviceName)
             onStatus(CarPlayStatus.Pairing)
             val pairingClient = LockdownPairingClient(mux)
             val phoneIdentifier = pairingClient.deviceIdentifier(config.label)
@@ -2431,6 +2550,34 @@ class CarPlayController(
         }
     }
 
+    /** Android 7 head units may omit USB_DEVICE_DETACHED while leaving blocking reads asleep. */
+    private fun startWiredPresenceWatchdog(deviceName: String) {
+        val generation = wiredPresenceGeneration.incrementAndGet()
+        var consecutiveMisses = 0
+        val check = object : Runnable {
+            override fun run() {
+                if (closed || generation != wiredPresenceGeneration.get()) return
+                val present = runCatching {
+                    iphoneHost.discover().any { it.deviceName == deviceName }
+                }.getOrElse { error ->
+                    // A transient enumeration failure must not tear down a working projection.
+                    debugLog("wired iPhone presence check failed", error)
+                    true
+                }
+                consecutiveMisses = if (present) 0 else consecutiveMisses + 1
+                if (consecutiveMisses >= WIRED_DEVICE_MISSING_CHECKS) {
+                    wiredPresenceGeneration.incrementAndGet()
+                    debugLog("wired iPhone USB device disappeared; closing the active session")
+                    activeSession?.close()
+                    fail(IphoneUsbException.DeviceUnavailable("iPhone USB disconnected"))
+                    return
+                }
+                mainHandler.postDelayed(this, WIRED_DEVICE_PRESENCE_INTERVAL_MILLIS)
+            }
+        }
+        mainHandler.postDelayed(check, WIRED_DEVICE_PRESENCE_INTERVAL_MILLIS)
+    }
+
     private fun ByteArray.macString(): String =
         joinToString(":") { byte -> "%02x".format(byte.toInt() and 0xff) }
 
@@ -2638,9 +2785,15 @@ class CarPlayController(
         private const val PERMISSION_POLL_INTERVAL_MILLIS = 500L
         private const val PERMISSION_POLL_TIMEOUT_MILLIS = 120_000L
         private const val DEVICE_AVAILABILITY_POLL_INTERVAL_MILLIS = 2_000L
+        private const val WIRED_DEVICE_PRESENCE_INTERVAL_MILLIS = 1_000L
+        private const val WIRED_DEVICE_MISSING_CHECKS = 2
         private const val WIRELESS_HANDOFF_TIMEOUT_MILLIS = 45_000L
         private const val RFCOMM_CONNECT_TIMEOUT_MILLIS = 15_000L
         private const val MAXIMUM_REENUMERATION_ATTEMPTS = 2
+        private const val USB_RESET_SETTLE_MILLIS = 750L
+        private const val USB_RESET_DISCOVERY_POLL_INTERVAL_MILLIS = 250L
+        private const val USB_RESET_DISCOVERY_TIMEOUT_MILLIS = 5_000L
+        private const val MODE4_REENUMERATION_TIMEOUT_MILLIS = 10_000L
         private const val EXECUTOR_CLOSE_TIMEOUT_MILLIS = 2_000L
         private const val ADAPTER_ADDRESS_PLACEHOLDER = "02:00:00:00:00:00"
         private val BLUETOOTH_ADDRESS = Regex("^[0-9A-Fa-f]{2}(:[0-9A-Fa-f]{2}){5}$")

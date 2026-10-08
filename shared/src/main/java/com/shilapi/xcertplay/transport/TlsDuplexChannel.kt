@@ -307,7 +307,12 @@ class TlsDuplexChannel private constructor(
     private fun fail(error: Exception): IphoneUsbException {
         val mapped = when (error) {
             is IphoneUsbException -> error
-            else -> IphoneUsbException.Protocol("TLS channel failed (${error.javaClass.simpleName})")
+            else -> IphoneUsbException.Protocol(
+                "TLS channel failed (${error.javaClass.simpleName}: " +
+                    "${error.message?.take(MAXIMUM_FAILURE_MESSAGE_CHARS) ?: "no message"}; " +
+                    "encryptedBuffered=${encryptedInput.size})",
+                error,
+            )
         }
         val shouldClose = synchronized(stateLock) {
             if (failure == null) failure = mapped
@@ -392,6 +397,7 @@ class TlsDuplexChannel private constructor(
         private val ALLOWED_PROTOCOLS = arrayOf("TLSv1.3", "TLSv1.2")
         private const val RECEIVE_CHUNK_BYTES = 16 * 1024
         private const val MAXIMUM_TLS_BUFFER_BYTES = 1024 * 1024
+        private const val MAXIMUM_FAILURE_MESSAGE_CHARS = 240
         private const val MAXIMUM_CONTROL_STEPS = 32
         private const val MAXIMUM_NO_PROGRESS_STEPS = 8
         private const val MAXIMUM_CLOSE_WRAP_STEPS = 4

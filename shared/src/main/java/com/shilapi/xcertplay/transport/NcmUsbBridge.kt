@@ -28,6 +28,7 @@ class NcmUsbBridge internal constructor(
     private val claimedInterfaces: List<UsbInterface>,
     descriptorHostMac: ByteArray?,
     private val onDiagnostic: (String) -> Unit = {},
+    private val idleData: UsbInterface? = null,
 ) : Closeable {
     private val descriptorMac = descriptorHostMac?.copyOf()
     val hostMac: ByteArray? get() = descriptorMac?.copyOf()
@@ -60,7 +61,11 @@ class NcmUsbBridge internal constructor(
     }
 
     /** Wraps one Ethernet frame in one NTB16 block and writes it to bulk OUT. */
-    fun send(frame: ByteArray, timeoutMillis: Int) = synchronized(writeLock) {
+    fun send(
+        frame: ByteArray,
+        timeoutMillis: Int,
+        onTransfer: ((transferred: Int, expected: Int) -> Unit)? = null,
+    ) = synchronized(writeLock) {
         checkOpen()
         require(timeoutMillis > 0) { "timeoutMillis must be positive" }
         val sequence = synchronized(stateLock) {
@@ -69,6 +74,7 @@ class NcmUsbBridge internal constructor(
         }
         val block = Ntb16Codec.build(frame, sequence)
         val transferred = connection.bulkTransfer(outEndpoint, block, block.size, timeoutMillis)
+        onTransfer?.invoke(transferred, block.size)
         // Before StartCarPlaySession the phone keeps the NCM data path NAKed. Android reports the
         // resulting timeout as -1; it is not a detach and later packets must be allowed to retry.
         if (transferred <= 0) {
@@ -128,6 +134,19 @@ class NcmUsbBridge internal constructor(
                 thread.join(STATUS_POLL_TIMEOUT_MILLIS + 250L)
             } catch (_: InterruptedException) {
                 Thread.currentThread().interrupt()
+            }
+        }
+        // Cancel first, then wait for both data directions to leave USB calls. Never change
+        // alternate settings underneath a pending bulk transfer. This owns only the NCM pipe.
+        synchronized(writeLock) {
+            synchronized(readLock) {
+                idleData?.let { idle ->
+                    val result = runCatching { connection.setInterface(idle) }
+                    val message = "ncm deactivate iface=${idle.id}/${idle.alternateSetting} " +
+                        "ok=${result.getOrDefault(false)}"
+                    Log.i(IphoneCarPlayConfiguration.TAG, message)
+                    runCatching { onDiagnostic(message) }
+                }
             }
         }
         for (usbInterface in claimedInterfaces.asReversed()) {
@@ -375,6 +394,11 @@ class NcmUsbBridge internal constructor(
                     }
                     claimed.add(function.data)
                 }
+                Log.i(
+                    IphoneCarPlayConfiguration.TAG,
+                    "ncm initial state configuration=${readStateByte(connection, 0x80, 8, 0)} " +
+                        "dataAlt=${readStateByte(connection, 0x81, 10, function.data.id)}",
+                )
                 val altSelected = connection.setInterface(function.data)
                 Log.i(
                     IphoneCarPlayConfiguration.TAG,
@@ -397,6 +421,7 @@ class NcmUsbBridge internal constructor(
                     claimed,
                     descriptorHostMac,
                     onDiagnostic,
+                    function.idleData,
                 )
             } catch (error: Throwable) {
                 for (usbInterface in claimed.asReversed()) {
@@ -431,6 +456,16 @@ class NcmUsbBridge internal constructor(
             val hex = value.filter { it.digitToIntOrNull(16) != null }
             if (hex.length != 12) return null
             return ByteArray(6) { offset -> hex.substring(offset * 2, offset * 2 + 2).toInt(16).toByte() }
+        }
+
+        // Standard GET_CONFIGURATION / GET_INTERFACE requests; unknown is not success.
+        private fun readStateByte(connection: UsbDeviceConnection, type: Int, request: Int, index: Int): Int? {
+            val buffer = ByteArray(1)
+            return runCatching {
+                if (connection.controlTransfer(type, request, 0, index, buffer, 1, 250) == 1) {
+                    buffer[0].toInt() and 0xff
+                } else null
+            }.getOrNull()
         }
 
         private fun ethernetMacStringIndex(raw: ByteArray, controlInterfaceId: Int): Int? {
