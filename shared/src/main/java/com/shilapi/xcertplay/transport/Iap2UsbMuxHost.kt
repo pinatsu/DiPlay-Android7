@@ -104,6 +104,11 @@ class Iap2UsbMuxHost private constructor(
         }
     }
 
+    internal fun reportTcpDiagnostic(message: String) {
+        Log.w("xcertplay-usb", message)
+        runCatching { onDiagnostic(message) }
+    }
+
     private fun begin() {
         val version = ByteArray(VERSION_MESSAGE_BYTES)
         putU32(version, 0, PROTOCOL_VERSION)
@@ -338,6 +343,7 @@ class Iap2UsbMuxTcpConnection internal constructor(
     private var connected = false
     private var closed = false
     private var failure: IphoneUsbException? = null
+    private var sequenceReports = 0
 
     /** Sends [data] as an ordered byte stream, split into USBMUX TCP payloads of at most 16 KiB. */
     override fun send(data: ByteArray) {
@@ -482,11 +488,17 @@ class Iap2UsbMuxTcpConnection internal constructor(
             return
         }
         if ((flags and TCP_SYN) != 0 && (flags and TCP_ACK) != 0) {
+            var duplicate = false
             synchronized(stateLock) {
                 if (closed) return
-                nextSequence += 1
-                nextAcknowledgement = sequence + 1
+                if (connected) {
+                    duplicate = true
+                } else {
+                    nextSequence += 1
+                    nextAcknowledgement = sequence + 1
+                }
             }
+            if (duplicate) reportSequence("duplicate SYN-ACK", sequence, 0)
             sendControl(TCP_ACK)
             synchronized(stateLock) {
                 if (!closed) {
@@ -496,27 +508,62 @@ class Iap2UsbMuxTcpConnection internal constructor(
             }
             return
         }
+        var finAccepted = false
         if (payload.isNotEmpty()) {
-            synchronized(stateLock) {
+            val disposition = synchronized(stateLock) {
                 if (closed) return
-                nextAcknowledgement += payload.size
-                received.addLast(payload)
-                stateLock.notifyAll()
+                val decision = usbMuxTcpReceiveDisposition(nextAcknowledgement, sequence, payload.size)
+                when (decision) {
+                    is UsbMuxTcpReceiveDisposition.Accept -> {
+                        val accepted = if (decision.offset == 0) payload
+                        else payload.copyOfRange(decision.offset, payload.size)
+                        nextAcknowledgement += accepted.size
+                        received.addLast(accepted)
+                        stateLock.notifyAll()
+                    }
+                    UsbMuxTcpReceiveDisposition.Duplicate,
+                    is UsbMuxTcpReceiveDisposition.Gap -> Unit
+                }
+                finAccepted = (flags and TCP_FIN) != 0 && sequence + payload.size == nextAcknowledgement
+                decision
+            }
+            when (val decision = disposition) {
+                is UsbMuxTcpReceiveDisposition.Accept -> if (decision.offset > 0) {
+                    reportSequence("overlapping payload trimmed=${decision.offset}", sequence, payload.size)
+                }
+                UsbMuxTcpReceiveDisposition.Duplicate ->
+                    reportSequence("duplicate payload ignored", sequence, payload.size)
+                is UsbMuxTcpReceiveDisposition.Gap ->
+                    reportSequence("out-of-order payload ignored gap=${decision.bytes}", sequence, payload.size)
             }
             sendControl(TCP_ACK)
         }
         if ((flags and TCP_FIN) != 0) {
             synchronized(stateLock) {
                 if (closed) return
-                nextAcknowledgement += 1
+                if (payload.isEmpty()) finAccepted = sequence == nextAcknowledgement
+                if (finAccepted) nextAcknowledgement += 1
             }
             sendControl(TCP_ACK)
+            if (!finAccepted) {
+                reportSequence("out-of-order FIN ignored", sequence, payload.size)
+                return
+            }
             synchronized(stateLock) {
                 closed = true
                 stateLock.notifyAll()
             }
             host.removeConnection(this)
         }
+    }
+
+    private fun reportSequence(event: String, sequence: Int, payloadBytes: Int) {
+        if (sequenceReports++ >= MAX_SEQUENCE_REPORTS) return
+        val expected = synchronized(stateLock) { nextAcknowledgement }
+        host.reportTcpDiagnostic(
+            "USBMUX TCP receive $event source=$sourcePort destination=$destinationPort " +
+                "seq=${unsigned32(sequence)} expected=${unsigned32(expected)} payloadBytes=$payloadBytes",
+        )
     }
 
     private fun sendControl(flags: Int) = synchronized(writeLock) {
@@ -543,5 +590,29 @@ class Iap2UsbMuxTcpConnection internal constructor(
         const val TCP_ACK = 0x10
         const val MAX_SEND_PAYLOAD_BYTES = 16 * 1024
         const val NANOS_PER_MILLISECOND = 1_000_000L
+        const val MAX_SEQUENCE_REPORTS = 8
     }
 }
+
+internal sealed class UsbMuxTcpReceiveDisposition {
+    data class Accept(val offset: Int) : UsbMuxTcpReceiveDisposition()
+    object Duplicate : UsbMuxTcpReceiveDisposition()
+    data class Gap(val bytes: Long) : UsbMuxTcpReceiveDisposition()
+}
+
+/** Keeps retransmitted USBMUX TCP bytes from being delivered twice into the TLS record stream. */
+internal fun usbMuxTcpReceiveDisposition(
+    expectedSequence: Int,
+    sequence: Int,
+    payloadBytes: Int,
+): UsbMuxTcpReceiveDisposition {
+    require(payloadBytes > 0)
+    val forward = (unsigned32(sequence) - unsigned32(expectedSequence)) and 0xffff_ffffL
+    if (forward == 0L) return UsbMuxTcpReceiveDisposition.Accept(0)
+    if (forward < 0x8000_0000L) return UsbMuxTcpReceiveDisposition.Gap(forward)
+    val duplicatePrefix = (unsigned32(expectedSequence) - unsigned32(sequence)) and 0xffff_ffffL
+    return if (duplicatePrefix >= payloadBytes) UsbMuxTcpReceiveDisposition.Duplicate
+    else UsbMuxTcpReceiveDisposition.Accept(duplicatePrefix.toInt())
+}
+
+private fun unsigned32(value: Int): Long = value.toLong() and 0xffff_ffffL

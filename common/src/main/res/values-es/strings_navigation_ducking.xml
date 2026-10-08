@@ -1,0 +1,4 @@
+<resources>
+    <string name="settings_navigation_ducking">Bajar la música durante la navegación</string>
+    <string name="settings_navigation_ducking_description">Reduce la música de CarPlay al 30% durante las indicaciones de navegación y las alertas, y después la restaura gradualmente. Los cambios se aplican al volver a conectar.</string>
+</resources>

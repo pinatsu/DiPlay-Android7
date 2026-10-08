@@ -1668,6 +1668,12 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
             getString(R.string.audio_routing), R.drawable.ic_dp_audio) { card ->
             mediaChannelControl(card)
             navigationChannelControl(card)
+            toggle(card, getString(R.string.settings_navigation_ducking),
+                getString(R.string.settings_navigation_ducking_description),
+                AirPlayPersistence.loadNavigationDuckingEnabled(this)) {
+                AirPlayPersistence.saveNavigationDuckingEnabled(this, it)
+                markReconnectNeeded()
+            }
             val bufferPresets = com.shilapi.xcertplay.media.MediaAudioBuffer.presets
             choice(card, getString(R.string.music_buffer), listOf(getString(R.string.s_300_ms_default), getString(R.string.s_500_ms), getString(R.string.s_1000_ms_most_stable)),
                 bufferPresets.indexOf(AirPlayPersistence.loadMediaBufferMillis(this)).coerceAtLeast(0)) {

@@ -19,6 +19,8 @@ import com.shilapi.xcertplay.orchestration.WirelessHotspotMode
 import com.shilapi.xcertplay.network.WifiP2pChannels
 import com.shilapi.xcertplay.transport.LockdownPairRecord
 import java.io.File
+import java.nio.charset.StandardCharsets
+import java.security.MessageDigest
 
 /** SharedPreferences persistence for the accessory identity and paired controllers. */
 object AirPlayPersistence {
@@ -38,6 +40,7 @@ object AirPlayPersistence {
     private const val KEY_LOCKDOWN_HOST_CERT = "lockdown_host_cert"
     private const val KEY_LOCKDOWN_ROOT_PRIVATE = "lockdown_root_private"
     private const val KEY_LOCKDOWN_ROOT_CERT = "lockdown_root_cert"
+    private const val LOCKDOWN_DEVICE_PREFIX = "lockdown_device."
     private const val KEY_DISPLAY_SCALE_TENTHS = "display_scale_tenths"
     private const val KEY_UI_SCALE_PERCENT = "ui_scale_percent"
     private const val KEY_HEVC_ENABLED = "hevc_enabled"
@@ -45,6 +48,7 @@ object AirPlayPersistence {
     private const val KEY_ADVANCED_AUDIO_CHANNEL_MAPPING = "advanced_audio_channel_mapping"
     private const val KEY_AUDIO_FOCUS_ENABLED = "audio_focus_enabled"
     private const val KEY_AUDIO_FOCUS_AUTO_YIELD = "audio_focus_auto_yield"
+    private const val KEY_NAVIGATION_DUCKING_ENABLED = "navigation_ducking_enabled"
     private const val KEY_MEDIA_AUDIO_CHANNEL = "media_audio_channel"
     private const val KEY_NAVIGATION_AUDIO_CHANNEL = "navigation_audio_channel"
     private const val KEY_NAVIGATION_STREAM_TYPE = "navigation_stream_type"
@@ -110,7 +114,7 @@ object AirPlayPersistence {
 
     const val DEFAULT_MANUFACTURER = "DiPlay"
     const val DEFAULT_MODEL = "DiPlay"
-    const val DEFAULT_OEM_LABEL = "BYD"
+    const val DEFAULT_OEM_LABEL = "TOYOTA"
     const val DEFAULT_MFI_I2C_PATH = "/dev/i2c-1"
 
     fun loadAmbientDelaySeconds(context: Context): Int =
@@ -220,6 +224,16 @@ object AirPlayPersistence {
     fun saveAudioFocusAutoYield(context: Context, enabled: Boolean) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
             .putBoolean(KEY_AUDIO_FOCUS_AUTO_YIELD, enabled)
+            .apply()
+    }
+
+    fun loadNavigationDuckingEnabled(context: Context): Boolean =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getBoolean(KEY_NAVIGATION_DUCKING_ENABLED, true)
+
+    fun saveNavigationDuckingEnabled(context: Context, enabled: Boolean) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putBoolean(KEY_NAVIGATION_DUCKING_ENABLED, enabled)
             .apply()
     }
 
@@ -995,17 +1009,23 @@ object AirPlayPersistence {
             .apply()
     }
 
-    fun loadLockdownRecord(context: Context): LockdownPairRecord? {
+    fun loadLockdownRecord(context: Context, phoneIdentifier: String): LockdownPairRecord? {
+        require(phoneIdentifier.isNotBlank()) { "phoneIdentifier must not be blank" }
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        val hostId = prefs.getString(KEY_LOCKDOWN_HOST_ID, null) ?: return null
-        val systemBuid = prefs.getString(KEY_LOCKDOWN_SYSTEM_BUID, null) ?: return null
-        val wifiMac = prefs.getString(KEY_LOCKDOWN_WIFI_MAC, null) ?: return null
-        val devicePublic = prefs.getString(KEY_LOCKDOWN_DEVICE_PUBLIC, null) ?: return null
-        val deviceCert = prefs.getString(KEY_LOCKDOWN_DEVICE_CERT, null) ?: return null
-        val hostPrivate = prefs.getString(KEY_LOCKDOWN_HOST_PRIVATE, null) ?: return null
-        val hostCert = prefs.getString(KEY_LOCKDOWN_HOST_CERT, null) ?: return null
-        val rootPrivate = prefs.getString(KEY_LOCKDOWN_ROOT_PRIVATE, null) ?: return null
-        val rootCert = prefs.getString(KEY_LOCKDOWN_ROOT_CERT, null) ?: return null
+        val prefix = lockdownDevicePrefix(phoneIdentifier)
+        return restoreLockdownRecord { key -> prefs.getString(prefix + key, null) }
+    }
+
+    private fun restoreLockdownRecord(value: (String) -> String?): LockdownPairRecord? {
+        val hostId = value(KEY_LOCKDOWN_HOST_ID) ?: return null
+        val systemBuid = value(KEY_LOCKDOWN_SYSTEM_BUID) ?: return null
+        val wifiMac = value(KEY_LOCKDOWN_WIFI_MAC) ?: return null
+        val devicePublic = value(KEY_LOCKDOWN_DEVICE_PUBLIC) ?: return null
+        val deviceCert = value(KEY_LOCKDOWN_DEVICE_CERT) ?: return null
+        val hostPrivate = value(KEY_LOCKDOWN_HOST_PRIVATE) ?: return null
+        val hostCert = value(KEY_LOCKDOWN_HOST_CERT) ?: return null
+        val rootPrivate = value(KEY_LOCKDOWN_ROOT_PRIVATE) ?: return null
+        val rootCert = value(KEY_LOCKDOWN_ROOT_CERT) ?: return null
         return try {
             LockdownPairRecord.restore(
                 hostId = hostId,
@@ -1023,33 +1043,58 @@ object AirPlayPersistence {
         }
     }
 
-    fun saveLockdownRecord(context: Context, record: LockdownPairRecord) {
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-            .putString(KEY_LOCKDOWN_HOST_ID, record.hostId)
-            .putString(KEY_LOCKDOWN_SYSTEM_BUID, record.systemBuid)
-            .putString(KEY_LOCKDOWN_WIFI_MAC, record.wifiMacAddress)
-            .putString(KEY_LOCKDOWN_DEVICE_PUBLIC, record.devicePublicKeyPem.toHex())
-            .putString(KEY_LOCKDOWN_DEVICE_CERT, record.deviceCertificatePem.toHex())
-            .putString(KEY_LOCKDOWN_HOST_PRIVATE, record.hostPrivateKeyPem.toHex())
-            .putString(KEY_LOCKDOWN_HOST_CERT, record.hostCertificatePem.toHex())
-            .putString(KEY_LOCKDOWN_ROOT_PRIVATE, record.rootPrivateKeyPem.toHex())
-            .putString(KEY_LOCKDOWN_ROOT_CERT, record.rootCertificatePem.toHex())
-            .apply()
+    fun saveLockdownRecord(
+        context: Context,
+        phoneIdentifier: String,
+        record: LockdownPairRecord,
+    ) {
+        require(phoneIdentifier.isNotBlank()) { "phoneIdentifier must not be blank" }
+        val prefix = lockdownDevicePrefix(phoneIdentifier)
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().apply {
+            putString(prefix + KEY_LOCKDOWN_HOST_ID, record.hostId)
+            putString(prefix + KEY_LOCKDOWN_SYSTEM_BUID, record.systemBuid)
+            putString(prefix + KEY_LOCKDOWN_WIFI_MAC, record.wifiMacAddress)
+            putString(prefix + KEY_LOCKDOWN_DEVICE_PUBLIC, record.devicePublicKeyPem.toHex())
+            putString(prefix + KEY_LOCKDOWN_DEVICE_CERT, record.deviceCertificatePem.toHex())
+            putString(prefix + KEY_LOCKDOWN_HOST_PRIVATE, record.hostPrivateKeyPem.toHex())
+            putString(prefix + KEY_LOCKDOWN_HOST_CERT, record.hostCertificatePem.toHex())
+            putString(prefix + KEY_LOCKDOWN_ROOT_PRIVATE, record.rootPrivateKeyPem.toHex())
+            putString(prefix + KEY_LOCKDOWN_ROOT_CERT, record.rootCertificatePem.toHex())
+            removeLegacyLockdownRecord()
+        }.apply()
     }
 
-    fun clearLockdownRecord(context: Context) {
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-            .remove(KEY_LOCKDOWN_HOST_ID)
-            .remove(KEY_LOCKDOWN_SYSTEM_BUID)
-            .remove(KEY_LOCKDOWN_WIFI_MAC)
-            .remove(KEY_LOCKDOWN_DEVICE_PUBLIC)
-            .remove(KEY_LOCKDOWN_DEVICE_CERT)
-            .remove(KEY_LOCKDOWN_HOST_PRIVATE)
-            .remove(KEY_LOCKDOWN_HOST_CERT)
-            .remove(KEY_LOCKDOWN_ROOT_PRIVATE)
-            .remove(KEY_LOCKDOWN_ROOT_CERT)
-            .apply()
+    fun clearLockdownRecord(context: Context, phoneIdentifier: String) {
+        require(phoneIdentifier.isNotBlank()) { "phoneIdentifier must not be blank" }
+        val prefix = lockdownDevicePrefix(phoneIdentifier)
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().apply {
+            LOCKDOWN_KEYS.forEach { remove(prefix + it) }
+            removeLegacyLockdownRecord()
+        }.apply()
     }
+
+    private fun android.content.SharedPreferences.Editor.removeLegacyLockdownRecord() {
+        LOCKDOWN_KEYS.forEach(::remove)
+    }
+
+    private fun lockdownDevicePrefix(phoneIdentifier: String): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+            .digest(phoneIdentifier.toByteArray(StandardCharsets.UTF_8))
+            .toHex()
+        return "$LOCKDOWN_DEVICE_PREFIX$digest."
+    }
+
+    private val LOCKDOWN_KEYS = listOf(
+        KEY_LOCKDOWN_HOST_ID,
+        KEY_LOCKDOWN_SYSTEM_BUID,
+        KEY_LOCKDOWN_WIFI_MAC,
+        KEY_LOCKDOWN_DEVICE_PUBLIC,
+        KEY_LOCKDOWN_DEVICE_CERT,
+        KEY_LOCKDOWN_HOST_PRIVATE,
+        KEY_LOCKDOWN_HOST_CERT,
+        KEY_LOCKDOWN_ROOT_PRIVATE,
+        KEY_LOCKDOWN_ROOT_CERT,
+    )
 
     private fun ByteArray.toHex(): String = joinToString("") { "%02x".format(it.toInt() and 0xff) }
 

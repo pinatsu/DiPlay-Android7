@@ -1,0 +1,4 @@
+<resources>
+    <string name="settings_navigation_ducking">导航播报时降低音乐</string>
+    <string name="settings_navigation_ducking_description">导航和提示音播放时将 CarPlay 音乐降低至 30%，结束后平滑恢复。更改将在重新连接后生效。</string>
+</resources>

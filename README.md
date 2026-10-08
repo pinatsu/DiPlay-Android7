@@ -1,14 +1,17 @@
-# DiPlay
+[**English**](README.md) | [简体中文](README.zh-CN.md)
 
-**CarPlay for compatible BYD Android head units.** Wired and wireless, with the familiar DiAuto interface. Independent app: `com.shihab.diplay`.
+# DiPlay Android 7
 
-> **BYD support scope:** These projects focus on BYD cars. They may work on other brands, but other brands are unsupported and there are no plans to add support or fix brand-specific incompatibilities.
+CarPlay for an Android 7.1 head unit, based on [DiPlay](https://github.com/shihabal3amri/DiPlay). This fork uses the independent package `io.github.pinatsu.diplay.android7`, so it can coexist with upstream DiPlay.
 
-[Download & website](https://shihabal3amri.github.io/DiPlay/) · [Release](https://github.com/shihabal3amri/DiPlay/releases/tag/v0.2.15) · [Report a problem](https://github.com/shihabal3amri/DiPlay/issues/new/choose)
+> [!IMPORTANT]
+> This is a personal-use-focused fork maintained primarily for my own Android 7.1 head unit. Fixes, defaults, and design decisions prioritize that environment. Other devices are welcome to try it, but broad compatibility, support, and response times are not guaranteed.
+
+[Fork releases](https://github.com/pinatsu/DiPlay-Android7/releases) · [Report a problem](https://github.com/pinatsu/DiPlay-Android7/issues) · [Upstream DiPlay](https://github.com/shihabal3amri/DiPlay)
 
 ![DiPlay home](site/assets/home.png)
 
-## 0.2.15 — public preview
+## 0.2.15-android7-r19-test
 
 Install on the **car**, not the iPhone. No jailbreak, dongle, Mac, account or authentication server is required for use. Core CarPlay does not require ADB; optional dashboard, battery, wheel-speed and parked-video features do. Your head unit must permit APK installation. The APK supports Android 7.1+ (API 25); Android 7.1–8.1 support is new and not yet confirmed on a vehicle. Wireless supports Wi-Fi Direct, the car’s existing hotspot or Existing Wi-Fi / Same LAN. Android 7.1–9 Wi-Fi Direct uses a firmware-dependent legacy path with generated group credentials and unverified requested frequency; see [Android 9 Wi-Fi Direct](docs/ANDROID9_WIFI_DIRECT.md). Android 10+ verifies its negotiated group frequency.
 
@@ -35,6 +38,17 @@ Earlier releases were tested on the development DiLink5.1 car: live windshield g
 - Experimental Bluetooth audio and explicit ADB boot-start repair; firmware-dependent options remain opt-in.
 
 See [0.2.15 release notes](docs/RELEASE-NOTES-0.2.15.md) and [validation](docs/VALIDATION.md) for contribution links and remaining physical tests. General stutter, calls/Siri, decoder and model-specific reports still need current-device evidence. [0.2.14 notes](docs/RELEASE-NOTES-0.2.14.md) remain available as historical guidance.
+
+## What this fork changes
+
+- Defaults the CarPlay vehicle label and vehicle button to `TOYOTA` with the maintainer's custom icon.
+- Keeps Lockdown pairing records separate for each iPhone, so switching phones does not overwrite another phone's record.
+- Resets and re-enumerates the iPhone at the start of wired connections when the kernel supports USB reset, with a bounded fallback on unsupported kernels.
+- Detects a physically removed iPhone even when Android 7 firmware omits the USB-detached broadcast.
+- Deactivates the NCM data interface during teardown and rejects duplicate or overlapping USBMUX TCP bytes before they reach TLS.
+- Advertises the tested wired navigation audio format at 48 kHz and optionally ducks CarPlay music during navigation prompts; ducking is enabled by default.
+
+Wired CarPlay on the maintainer's Android 7.1 head unit is the primary target. Wireless CarPlay remains experimental on that head unit even though upstream provides Android 7.1-compatible Wi-Fi paths. See the [Android 7 real-device test guide](docs/ANDROID7_REAL_DEVICE_TEST_ZH.md) for the local validation workflow.
 
 If a problem remains, reproduce it on **0.2.15**, then use **Settings → Diagnostics → Save diagnostic report**. Android 10+ normally saves to **Downloads/DiPlay**; Android 7.1–9 uses the document picker. If unavailable, use **View report** or **Share** from the confirmation, which identifies external/private fallback storage. Review the `.txt` and add it to a matching [existing issue](https://github.com/shihabal3amri/DiPlay/issues), or [create one](https://github.com/shihabal3amri/DiPlay/issues/new/choose). Include vehicle/head-unit model, exact firmware and Android/DiLink, phone/iOS, connection backend, relevant settings, steps and failure time. Reports are shared only when you choose; never post your hotspot password.
 

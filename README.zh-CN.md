@@ -1,12 +1,15 @@
-# DiPlay
+[English](README.md) | [**简体中文**](README.zh-CN.md)
 
-为兼容的比亚迪安卓车机提供有线及无线 CarPlay，采用 DiAuto 风格界面。
+# DiPlay Android 7
 
-> 这些项目专注于比亚迪汽车。它们可能在其他品牌上运行，但其他品牌不在支持范围内，也没有增加支持或修复其品牌特定兼容性问题的计划。
+面向 Android 7.1 车机的 CarPlay 应用，基于 [DiPlay](https://github.com/shihabal3amri/DiPlay) 维护。独立包名为 `io.github.pinatsu.diplay.android7`，可与上游 DiPlay 共存。
 
-[下载与中文网站](https://shihabal3amri.github.io/DiPlay/zh-Hans/) · [0.2.15 版本](https://github.com/shihabal3amri/DiPlay/releases/tag/v0.2.15) · [完整说明](README.md) · [报告问题](https://github.com/shihabal3amri/DiPlay/issues/new/choose)
+> [!IMPORTANT]
+> 这是一个以个人使用为主要目标的分支，首先服务于维护者自己的 Android 7.1 车机。修复、默认设置和设计选择都会优先考虑这套环境。欢迎其他设备尝试，但不保证广泛兼容，也不承诺支持范围和响应时间。
 
-## 0.2.15 — 公开预览版
+[本分支发布页](https://github.com/pinatsu/DiPlay-Android7/releases) · [报告问题](https://github.com/pinatsu/DiPlay-Android7/issues) · [DiPlay 上游](https://github.com/shihabal3amri/DiPlay)
+
+## 0.2.15-android7-r19-test
 
 请安装在允许 APK 安装的 Android 7.1+（API 25+）车机上；Android 7.1–8.1 为新增支持，尚未经实车验证。无需越狱、转接盒、账户或认证服务器。有线及无线核心连接不要求 ADB；可选车辆数据及车辆控制需要支持的固件和已授权网络 ADB。
 
@@ -22,6 +25,17 @@ Wi-Fi Direct 现支持 Android 7.1–9 的旧版建组路径，使用系统返�
 - **实验性功能**：车载蓝牙音频默认关闭；ADB 开机自启动修复须主动执行，效果取决于固件。
 
 [0.2.15 完整说明](docs/RELEASE-NOTES-0.2.15.md)包含贡献链接及功能限制；构建和验证信息见[验证记录](docs/VALIDATION.md)。Android 7.1–8.1 尚需实车验证，不宣称所有车型的连接、音频或 Siri 问题均已解决。可选功能请停车后测试。
+
+### 本分支的定制
+
+- CarPlay 默认车辆名称为 `TOYOTA`，车辆按钮使用维护者的定制图标。
+- 每部 iPhone 独立保存 Lockdown 配对记录，切换手机不会覆盖其他手机的记录。
+- 每次开始有线连接时，在内核支持的情况下执行 USB reset 和重新枚举；不支持时采用有边界的回退流程。
+- Android 7 固件遗漏 USB 拔出广播时，通过低频检测退出残留会话。
+- 断开时停用 NCM 数据接口，并在 USBMUX TCP 数据进入 TLS 前过滤重复或重叠字节。
+- 有线导航音频使用已测试的 48 kHz 格式；导航播报时默认平滑压低 CarPlay 音乐，可在设置中关闭。
+
+本项目主要面向维护者已实测的 Android 7.1 车机有线 CarPlay。虽然上游已提供兼容 Android 7.1 的 Wi-Fi 路径，但该车机的无线 CarPlay 仍属于实验功能。实机验证流程见 [Android 7 测试指南](docs/ANDROID7_REAL_DEVICE_TEST_ZH.md)。
 
 ### 请提供 0.2.15 的新诊断报告
 

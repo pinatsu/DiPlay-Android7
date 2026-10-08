@@ -1,0 +1,4 @@
+<resources>
+    <string name="settings_navigation_ducking">خفض صوت الموسيقى أثناء الملاحة</string>
+    <string name="settings_navigation_ducking_description">يخفض موسيقى CarPlay إلى 30% أثناء تعليمات الملاحة والتنبيهات، ثم يعيدها تدريجيًا. تسري التغييرات بعد إعادة الاتصال.</string>
+</resources>

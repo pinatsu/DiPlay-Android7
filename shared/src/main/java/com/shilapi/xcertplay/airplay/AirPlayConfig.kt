@@ -71,6 +71,10 @@ data class AirPlayConfig(
     val icons: List<AirPlayIcon> = emptyList(),
     /** iOS 27 video in car (see [VideoInCar]); video plays only while [VideoInCar.allowed]. */
     val videoInCar: Boolean = false,
+    /** True for Wi-Fi CarPlay; wired sessions can advertise a transport-specific audio offer. */
+    val wirelessAudio: Boolean = true,
+    /** Constrain wired type-101 guidance to 48 kHz stereo PCM. */
+    val wiredType10148kOnly: Boolean = false,
     /**
      * CarPlay's main buffered audio (see [BufferedAudioStream]): apps that support it send music
      * ahead of time over TCP, so short Wi-Fi gaps do not interrupt it.

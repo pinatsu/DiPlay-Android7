@@ -176,6 +176,7 @@ class AndroidMediaSink(
     private val audioFocusAutoYield: Boolean = true,
     private val mediaChannel: Int = 0,
     private val navigationChannel: Int = 0,
+    private val navigationDuckingEnabled: Boolean = false,
     context: Context? = null,
     private val navigationStreamType: Int = AudioChannelMapper.DEFAULT_NAVIGATION_STREAM_TYPE,
     onScreenStreamActiveChanged: ((Int, Boolean) -> Unit)? = null,
@@ -211,6 +212,11 @@ class AndroidMediaSink(
     fun onMediaAudioFocusChanged(change: Int) {
         audioFocusCoordinator.onExternalFocusChange(change)
     }
+
+    private val navigationAudioDucker = NavigationAudioDucker(
+        navigationDuckingEnabled,
+        onAudioDiagnostic,
+    )
 
     private val screenStateLock = Any()
     private val activeScreenTypes = mutableSetOf<Int>()
@@ -572,6 +578,7 @@ class AndroidMediaSink(
         audioFocusCoordinator.close()
         audioRenderers.values.forEach(AudioRenderer::close)
         audioRenderers.clear()
+        navigationAudioDucker.close()
         callEchoReferences.clear()
         val hadMedia = synchronized(mediaAudioTypes) { mediaAudioTypes.isNotEmpty().also { mediaAudioTypes.clear() } }
         if (hadMedia) onMediaAudioChanged(false)
@@ -628,6 +635,7 @@ class AndroidMediaSink(
             mediaChannel,
             navigationChannel,
             audioFocusCoordinator,
+            navigationAudioDucker,
             navigationStreamType,
             mediaBufferMillis,
             onAudioDiagnostic,
@@ -1278,6 +1286,7 @@ private class AudioRenderer(
     private val mediaChannel: Int,
     private val navigationChannel: Int,
     private val audioFocusCoordinator: AudioFocusCoordinator,
+    private val navigationAudioDucker: NavigationAudioDucker,
     private val navigationStreamType: Int,
     private val mediaBufferMillis: Int,
     private val report: (String) -> Unit,
@@ -1512,6 +1521,7 @@ private class AudioRenderer(
         track = built
         diagnosticStage = "track-attributes"
         trackAttributes = audioTrackAttributesForFocus(built, attributes)
+        if (selection.channel == AudioChannel.MEDIA) navigationAudioDucker.registerMedia(built)
         diagnosticStage = "track-capacity"
         val capacityBytes = built.bufferSizeInFrames * frameBytes
         startThresholdBytes = MediaAudioBuffer.startBytesFor(plan.startBytes, capacityBytes, PREBUFFER_WRITE_CHUNK_BYTES)
@@ -1813,6 +1823,9 @@ private class AudioRenderer(
     private fun writePcm(data: ByteArray, offset: Int = 0, length: Int = data.size) {
         val track = track ?: return
         diagnosticStage = "track-write"
+        if (length > 0 && mappedChannel == AudioChannel.NAVIGATION) {
+            navigationAudioDucker.navigationAudio()
+        }
         if (!firstPcmLogged && length > 0) {
             firstPcmLogged = true
             Log.i(
@@ -1999,6 +2012,7 @@ private class AudioRenderer(
         val track = track
         this.track = null
         if (track != null) {
+            if (mappedChannel == AudioChannel.MEDIA) navigationAudioDucker.unregisterMedia(track)
             try {
                 track.pause()
             } catch (_: Exception) {

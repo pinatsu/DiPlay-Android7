@@ -1,0 +1,4 @@
+<resources>
+    <string name="settings_navigation_ducking">Приглушать музыку при навигации</string>
+    <string name="settings_navigation_ducking_description">Снижает громкость музыки CarPlay до 30% во время навигационных подсказок и предупреждений, затем плавно восстанавливает её. Изменения применяются после переподключения.</string>
+</resources>

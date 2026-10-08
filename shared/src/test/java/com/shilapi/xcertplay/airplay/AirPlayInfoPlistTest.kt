@@ -231,6 +231,38 @@ class AirPlayInfoPlistTest {
         assertEquals(setOf(100, 101, 102), types)
     }
 
+    @Test
+    fun wired48kOnlyConstrainsType101() {
+        val base = AirPlayConfig(
+            deviceName = "test",
+            deviceId = "02:00:00:00:00:02",
+            btMac = "02:00:00:00:00:02",
+            sourceVersion = "366.0",
+            main = AirPlayDisplayConfig(widthPixels = 1280, heightPixels = 720),
+        )
+
+        fun formats(config: AirPlayConfig): Map<Pair<Int, String>, Int> =
+            (AirPlayInfoPlist.build(config)["audioFormats"] as List<*>)
+                .map { it as Map<*, *> }
+                .associate {
+                    (it["type"] as Int to it["audioType"] as String) to
+                        (it["audioOutputFormats"] as Int)
+                }
+
+        val baseline = formats(base)
+        val wireless = formats(base.copy(wirelessAudio = true, wiredType10148kOnly = true))
+        val wired = formats(base.copy(wirelessAudio = false, wiredType10148kOnly = true))
+
+        assertEquals(baseline, wireless)
+        assertEquals(0x8000, wired[101 to "compatibility"])
+        assertEquals(0x8000, wired[101 to "default"])
+        assertEquals(
+            baseline.filterKeys { it.first != 101 },
+            wired.filterKeys { it.first != 101 },
+        )
+        assertEquals(baseline, formats(base.copy(wirelessAudio = false, wiredType10148kOnly = false)))
+    }
+
     private fun mainDisplay(areas: List<AirPlayViewArea>?, initial: Int = 0, safeArea: AirPlayInsets? = null): Map<*, *> {
         val info = AirPlayInfoPlist.build(
             AirPlayConfig(

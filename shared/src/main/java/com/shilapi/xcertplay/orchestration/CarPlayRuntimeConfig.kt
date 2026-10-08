@@ -57,6 +57,8 @@ class CarPlayRuntimeConfig(
     val label: String = "xcertplay",
     val hostName: String = "xcertplay",
     val transport: CarPlayTransport = CarPlayTransport.WIRED,
+    /** Reset an already-configured iPhone before starting a new wired CarPlay session. */
+    val forceWiredReenumeration: Boolean = false,
     val wirelessHotspotMode: WirelessHotspotMode = WirelessHotspotMode.WIFI_P2P,
     val manualHotspotSsid: String? = null,
     val manualHotspotPassphrase: String? = null,

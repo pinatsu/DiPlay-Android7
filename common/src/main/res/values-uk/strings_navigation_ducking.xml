@@ -1,0 +1,4 @@
+<resources>
+    <string name="settings_navigation_ducking">Приглушувати музику під час навігації</string>
+    <string name="settings_navigation_ducking_description">Знижує гучність музики CarPlay до 30% під час навігаційних підказок і попереджень, а потім плавно відновлює її. Зміни застосовуються після повторного підключення.</string>
+</resources>

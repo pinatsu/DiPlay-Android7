@@ -28,6 +28,7 @@ class NcmUsbBridge internal constructor(
     private val claimedInterfaces: List<UsbInterface>,
     descriptorHostMac: ByteArray?,
     private val onDiagnostic: (String) -> Unit = {},
+    private val idleData: UsbInterface? = null,
 ) : Closeable {
     private val descriptorMac = descriptorHostMac?.copyOf()
     val hostMac: ByteArray? get() = descriptorMac?.copyOf()
@@ -131,6 +132,19 @@ class NcmUsbBridge internal constructor(
                 Thread.currentThread().interrupt()
             }
         }
+        // Stop the request reaper before changing alternate settings on its connection.
+        readRequests.close()
+        synchronized(writeLock) {
+            synchronized(readLock) {
+                idleData?.let { idle ->
+                    val result = runCatching { connection.setInterface(idle) }
+                    val message = "ncm deactivate iface=${idle.id}/${idle.alternateSetting} " +
+                        "ok=${result.getOrDefault(false)}"
+                    Log.i(IphoneCarPlayConfiguration.TAG, message)
+                    runCatching { onDiagnostic(message) }
+                }
+            }
+        }
         for (usbInterface in claimedInterfaces.asReversed()) {
             try {
                 connection.releaseInterface(usbInterface)
@@ -138,7 +152,6 @@ class NcmUsbBridge internal constructor(
                 // Best-effort release; the connection close below is authoritative.
             }
         }
-        readRequests.close()
         connection.close()
         runCatching { requestToClose?.close() }
     }
@@ -384,6 +397,7 @@ class NcmUsbBridge internal constructor(
                     claimed,
                     descriptorHostMac,
                     onDiagnostic,
+                    function.idleData,
                 )
             } catch (error: Throwable) {
                 for (usbInterface in claimed.asReversed()) {
