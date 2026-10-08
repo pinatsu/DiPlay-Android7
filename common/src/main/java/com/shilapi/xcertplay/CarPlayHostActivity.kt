@@ -4365,7 +4365,7 @@ class CarPlayHostActivity : ComponentActivity() {
         if (!CarPlayBackgroundSession.isOwner(this)) return
         if (shuttingDown.get() || menuOpen || handshakeResetInProgress) return
         val size = activeDisplaySize ?: return
-        WiredSoftwareReconnect.prepareForRestart(wirelessEnabled, wirelessEnabled)
+        WiredSoftwareReconnect.prepareForRestart(nextTransportWireless = wirelessEnabled)
         startupRetryBudget.disconnected()
         startupRetryButton?.visibility = View.GONE
         appendLog(reason)

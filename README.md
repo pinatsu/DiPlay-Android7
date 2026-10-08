@@ -11,7 +11,7 @@ CarPlay for Android 7.1 head units, based on [DiPlay](https://github.com/shihaba
 
 ## Project status
 
-The current fork release is `0.2.13-android7-r14`. Its compatibility baseline is upstream commit `e2fd8ea` (`v0.2.13-51-ge2fd8ea`, 51 commits after the DiPlay 0.2.13 tag). This branch lowers the app requirement from Android 9 (API 28) to Android 7.1 (API 25). It keeps upstream behavior on newer Android versions where possible and adds guarded compatibility paths for Android 7. Later upstream commits require separate integration and validation.
+The current fork release is `0.2.13-android7-r15`. Its compatibility baseline is upstream commit `e2fd8ea` (`v0.2.13-51-ge2fd8ea`, 51 commits after the DiPlay 0.2.13 tag). This branch lowers the app requirement from Android 9 (API 28) to Android 7.1 (API 25). It keeps upstream behavior on newer Android versions where possible and adds guarded compatibility paths for Android 7. Later upstream commits require separate integration and validation.
 
 | Environment | Status |
 | --- | --- |

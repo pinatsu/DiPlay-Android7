@@ -8,17 +8,21 @@ class WiredSoftwareReconnectTest {
     @Test fun pendingMarkerLivesUntilAConnectionSucceeds() {
         WiredSoftwareReconnect.connected()
         assertFalse(WiredSoftwareReconnect.isPending())
-        WiredSoftwareReconnect.prepareForRestart(false, false)
+        WiredSoftwareReconnect.prepareForRestart(nextTransportWireless = false)
         assertTrue(WiredSoftwareReconnect.isPending())
         WiredSoftwareReconnect.connected()
         assertFalse(WiredSoftwareReconnect.isPending())
     }
 
-    @Test fun wirelessTransitionsDoNotRequestAUsbReset() {
-        for ((currentWireless, nextWireless) in listOf(true to true, true to false, false to true)) {
-            WiredSoftwareReconnect.prepareForRestart(false, false)
-            WiredSoftwareReconnect.prepareForRestart(currentWireless, nextWireless)
-            assertFalse(WiredSoftwareReconnect.isPending())
-        }
+    @Test fun existingSessionStartingWiredRequestsAUsbReset() {
+        WiredSoftwareReconnect.connected()
+        WiredSoftwareReconnect.prepareForRestart(nextTransportWireless = false)
+        assertTrue(WiredSoftwareReconnect.isPending())
+    }
+
+    @Test fun existingSessionStartingWirelessDoesNotRequestAUsbReset() {
+        WiredSoftwareReconnect.prepareForRestart(nextTransportWireless = false)
+        WiredSoftwareReconnect.prepareForRestart(nextTransportWireless = true)
+        assertFalse(WiredSoftwareReconnect.isPending())
     }
 }

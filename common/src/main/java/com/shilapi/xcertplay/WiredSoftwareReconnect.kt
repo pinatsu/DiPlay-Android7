@@ -6,9 +6,9 @@ import java.util.concurrent.atomic.AtomicBoolean
 internal object WiredSoftwareReconnect {
     private val pending = AtomicBoolean(false)
 
-    /** Wireless transitions and first/physical USB connections do not need a synthetic reset. */
-    fun prepareForRestart(currentTransportWireless: Boolean, nextTransportWireless: Boolean) {
-        pending.set(!currentTransportWireless && !nextTransportWireless)
+    /** Any existing session switching to wired needs a clean USB enumeration. */
+    fun prepareForRestart(nextTransportWireless: Boolean) {
+        pending.set(!nextTransportWireless)
     }
 
     fun isPending(): Boolean = pending.get()

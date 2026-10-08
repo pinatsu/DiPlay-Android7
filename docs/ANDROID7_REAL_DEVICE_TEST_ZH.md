@@ -4,7 +4,7 @@
 
 - APK：以下示例使用 `DiPlay-Android7.apk`，安装时替换为实际文件名；
 - release 包名：`io.github.pinatsu.diplay.android7`；debug/测试包名：`io.github.pinatsu.diplay.android7.hudtest`；
-- 当前分支版本：`0.2.13-android7-r14`（versionCode `3214`），debug 版本另带 `-hud-test` 后缀；
+- 当前分支版本：`0.2.13-android7-r15`（versionCode `3215`），debug 版本另带 `-hud-test` 后缀；
 - 支持的无线方式：车机自身热点（手动填写热点信息）
 
 本分支已进行 API 25 模拟器测试、维护者车机的有线测试以及较新 Android 平板测试。这些结果不保证其他固件可用，也不能证明目标车机的完整无线流程。最新构建仍需回归测试 USB 插拔、多手机切换、音频、触摸和断线恢复；所有测试应在停车状态下进行。

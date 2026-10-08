@@ -2943,10 +2943,7 @@ class DiPlayActivity : ComponentActivity() {
             openProjection()
         }
         if (CarPlayBackgroundSession.hasSession()) {
-            WiredSoftwareReconnect.prepareForRestart(
-                currentTransportWireless = AirPlayPersistence.loadWirelessEnabled(this),
-                nextTransportWireless = wireless,
-            )
+            WiredSoftwareReconnect.prepareForRestart(nextTransportWireless = wireless)
             CarPlayBackgroundSession.stop { runOnUiThread { open() } }
         } else open()
     }
@@ -2954,7 +2951,7 @@ class DiPlayActivity : ComponentActivity() {
     private fun disconnectFromCarPlay() {
         disconnectButton?.isEnabled = false
         val wireless = AirPlayPersistence.loadWirelessEnabled(this)
-        WiredSoftwareReconnect.prepareForRestart(wireless, wireless)
+        WiredSoftwareReconnect.prepareForRestart(nextTransportWireless = wireless)
         CarPlayBackgroundSession.stop { runOnUiThread { refreshStatus() } }
     }
     private fun openProjection() {
