@@ -1,13 +1,13 @@
 # DiPlay Android 7.1 实机测试指南
 
-本指南适用于当前 Android 7.1 / API 25 测试包：
+本指南适用于本分支 Android 7.1 / API 25 构建。请以实际下载的 APK 和发布说明为准：
 
-- APK：`DiPlay-0.2.7-api25-test.apk`
-- 包名：`com.shihab.diplay.hudtest`
-- 版本名：`0.2.7-hud-test`
+- APK：以下示例使用 `DiPlay-Android7.apk`，安装时替换为实际文件名；
+- release 包名：`com.shihab.diplay`；debug/测试包名：`com.shihab.diplay.hudtest`；
+- 当前源码版本：`0.2.13`，debug 版本带 `-hud-test` 后缀；
 - 支持的无线方式：车机自身热点（手动填写热点信息）
 
-该版本已在 API 25 模拟器完成安装、启动、页面和基础兼容性验证。模拟器无法证明 USB 配件模式、iPhone 配对、车机热点、硬件解码器、音频通道或方向盘/触摸输入可用，因此首次上车仍属于受控测试，不是可在行驶中使用的发布版本。
+本分支已进行 API 25 模拟器测试、维护者车机的有线测试以及较新 Android 平板测试。这些结果不保证其他固件可用，也不能证明目标车机的完整无线流程。最新构建仍需回归测试 USB 插拔、多手机切换、音频、触摸和断线恢复；所有测试应在停车状态下进行。
 
 ## 1. 测试前准备
 
@@ -43,7 +43,7 @@ export ANDROID_SERIAL=这里填adb显示的车机序列号
 在包含 APK 的目录执行：
 
 ```bash
-adb install -r "DiPlay-0.2.7-api25-test.apk"
+adb install -r "DiPlay-Android7.apk"
 ```
 
 如果提示签名不一致，不要直接卸载：卸载会清除旧版设置和数据。先记录报错并决定是否需要备份后再卸载。安装成功后执行：
@@ -51,6 +51,8 @@ adb install -r "DiPlay-0.2.7-api25-test.apk"
 ```bash
 adb shell am start -W -n com.shihab.diplay.hudtest/com.shilapi.xcertplay.DiPlayActivity
 ```
+
+上面的启动命令适用于 debug/测试包。release 包请将组件前面的包名改为 `com.shihab.diplay`，活动类名保持不变。
 
 预期：应用在 10 秒内打开，无闪退、黑屏或系统反复弹出“已停止运行”。
 
@@ -138,7 +140,7 @@ chmod +x scripts/collect-android7-diagnostics.sh
 2. 启动持续 `logcat` 并打开 DiPlay；
 3. 等待你完成一次问题复现；
 4. 在按下回车后保存 crash buffer、Activity、内存、图形、USB、网络、Wi-Fi、DropBox、ANR/tombstone 可见性信息；
-5. 默认生成完整 Android bugreport。
+5. 询问是否生成完整 Android bugreport，直接回车默认生成。
 
 结果位于 `diagnostics/diplay-日期时间/`。原生崩溃 tombstone 和 ANR traces 在非 root 车机上通常不能直接读取，但 bugreport/DropBox 往往会包含系统允许导出的部分。即使应用已闪退，也不要立刻重启车机；先让脚本完成。
 
@@ -171,4 +173,3 @@ DIPLAY_PACKAGE=com.shihab.diplay ./scripts/collect-android7-diagnostics.sh
 - 应用进入连续崩溃/自动重启循环。
 
 恢复顺序：拔掉 iPhone → 强制停止 DiPlay → 关闭车机热点 → 正常重启车机。不要在行驶中排障。
-

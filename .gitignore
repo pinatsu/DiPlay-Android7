@@ -18,6 +18,11 @@ captures/
 # Local agent working notes
 /agent_docs/
 
+# Local test packages, screenshots, and device diagnostics
+/artifacts/
+/diagnostics/
+/bugreport-*
+
 # OS files
 .DS_Store
 Thumbs.db

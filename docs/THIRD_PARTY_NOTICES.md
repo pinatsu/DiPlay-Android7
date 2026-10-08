@@ -1,5 +1,11 @@
 # Credits and license notices
 
+## Android 7 compatibility fork
+
+DiPlay Android 7 is maintained by [pinatsu](https://github.com/pinatsu) and is based on [shihabal3amri/DiPlay](https://github.com/shihabal3amri/DiPlay). Existing upstream source attribution and license notices are preserved.
+
+The default `TOYOTA` CarPlay vehicle label and custom Toyota-themed image in `common/src/main/res/raw/ic_car_home.png` are personal customizations. Toyota's name and emblem belong to Toyota Motor Corporation and are not relicensed under the project's code license. Their inclusion does not imply authorization, affiliation, or endorsement.
+
 ## Receiver
 
 DiPlay is a modified version of [xcertplay by shilapi](https://github.com/shilapi/xcertplay). The upstream receiver is licensed under GNU GPL version 3; the full text is in `LICENSE` and the original README is retained in `docs/UPSTREAM-README.md`.
