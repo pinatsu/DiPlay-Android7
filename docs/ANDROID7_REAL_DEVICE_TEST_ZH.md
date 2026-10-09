@@ -4,7 +4,7 @@
 
 - APK：以下示例使用 `DiPlay-Android7.apk`，安装时替换为实际文件名；
 - release 包名：`io.github.pinatsu.diplay.android7`；debug/测试包名：`io.github.pinatsu.diplay.android7.hudtest`；
-- 当前分支版本：`0.2.15-android7-r19-test`（versionCode `3419`），debug 版本另带 `-hud-test` 后缀；
+- 当前分支版本：`0.2.15-android7-r19`（versionCode `3419`），debug 版本另带 `-hud-test` 后缀；
 - 无线方式遵循上游 0.2.15，但目标 Android 7.1 车机仍以车机自身热点作为实验路径
 
 本分支已进行 API 25 模拟器测试、维护者车机的有线测试以及较新 Android 平板测试。这些结果不保证其他固件可用，也不能证明目标车机的完整无线流程。最新构建仍需回归测试 USB 插拔、多手机切换、音频、触摸和断线恢复；所有测试应在停车状态下进行。
@@ -173,4 +173,3 @@ DIPLAY_PACKAGE=io.github.pinatsu.diplay.android7 ./scripts/collect-android7-diag
 - 应用进入连续崩溃/自动重启循环。
 
 恢复顺序：拔掉 iPhone → 强制停止 DiPlay → 关闭车机热点 → 正常重启车机。不要在行驶中排障。
-

@@ -9,7 +9,7 @@
 
 [本分支发布页](https://github.com/pinatsu/DiPlay-Android7/releases) · [报告问题](https://github.com/pinatsu/DiPlay-Android7/issues) · [DiPlay 上游](https://github.com/shihabal3amri/DiPlay)
 
-## 0.2.15-android7-r19-test
+## 0.2.15-android7-r19
 
 请安装在允许 APK 安装的 Android 7.1+（API 25+）车机上；Android 7.1–8.1 为新增支持，尚未经实车验证。无需越狱、转接盒、账户或认证服务器。有线及无线核心连接不要求 ADB；可选车辆数据及车辆控制需要支持的固件和已授权网络 ADB。
 
@@ -25,6 +25,8 @@ Wi-Fi Direct 现支持 Android 7.1–9 的旧版建组路径，使用系统返�
 - **实验性功能**：车载蓝牙音频默认关闭；ADB 开机自启动修复须主动执行，效果取决于固件。
 
 [0.2.15 完整说明](docs/RELEASE-NOTES-0.2.15.md)包含贡献链接及功能限制；构建和验证信息见[验证记录](docs/VALIDATION.md)。Android 7.1–8.1 尚需实车验证，不宣称所有车型的连接、音频或 Siri 问题均已解决。可选功能请停车后测试。
+
+本分支发布详情：[DiPlay Android 7 r19](docs/RELEASE-NOTES-ANDROID7-R19.md)。
 
 ### 本分支的定制
 

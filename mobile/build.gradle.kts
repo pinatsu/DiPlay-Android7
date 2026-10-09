@@ -19,7 +19,7 @@ android {
         targetSdk = 37
         // 34 = upstream 0.2.15 versionCode; 19 = this fork's internal revision.
         versionCode = 3419
-        versionName = "0.2.15-android7-r19-test"
+        versionName = "0.2.15-android7-r19"
 
     }
 

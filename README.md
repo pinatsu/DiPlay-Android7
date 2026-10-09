@@ -11,7 +11,7 @@ CarPlay for an Android 7.1 head unit, based on [DiPlay](https://github.com/shiha
 
 ![DiPlay home](site/assets/home.png)
 
-## 0.2.15-android7-r19-test
+## 0.2.15-android7-r19
 
 Install on the **car**, not the iPhone. No jailbreak, dongle, Mac, account or authentication server is required for use. Core CarPlay does not require ADB; optional dashboard, battery, wheel-speed and parked-video features do. Your head unit must permit APK installation. The APK supports Android 7.1+ (API 25); Android 7.1–8.1 support is new and not yet confirmed on a vehicle. Wireless supports Wi-Fi Direct, the car’s existing hotspot or Existing Wi-Fi / Same LAN. Android 7.1–9 Wi-Fi Direct uses a firmware-dependent legacy path with generated group credentials and unverified requested frequency; see [Android 9 Wi-Fi Direct](docs/ANDROID9_WIFI_DIRECT.md). Android 10+ verifies its negotiated group frequency.
 
@@ -38,6 +38,8 @@ Earlier releases were tested on the development DiLink5.1 car: live windshield g
 - Experimental Bluetooth audio and explicit ADB boot-start repair; firmware-dependent options remain opt-in.
 
 See [0.2.15 release notes](docs/RELEASE-NOTES-0.2.15.md) and [validation](docs/VALIDATION.md) for contribution links and remaining physical tests. General stutter, calls/Siri, decoder and model-specific reports still need current-device evidence. [0.2.14 notes](docs/RELEASE-NOTES-0.2.14.md) remain available as historical guidance.
+
+Fork release details: [DiPlay Android 7 r19](docs/RELEASE-NOTES-ANDROID7-R19.md).
 
 ## What this fork changes
 
