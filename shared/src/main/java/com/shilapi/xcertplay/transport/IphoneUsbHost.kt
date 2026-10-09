@@ -201,6 +201,10 @@ class IphoneUsbHost(
                 ResetResult.Failed(IphoneUsbException.PermissionDenied("USB reset permission was denied", error))
             } catch (error: IOException) {
                 ResetResult.Failed(IphoneUsbException.DeviceUnavailable(error.message ?: "USB reset failed", error))
+            } catch (error: LinkageError) {
+                ResetResult.Failed(
+                    IphoneUsbException.DeviceUnavailable("USB reset native library unavailable", error),
+                )
             } catch (error: RuntimeException) {
                 ResetResult.Failed(IphoneUsbException.DeviceUnavailable("iPhone USB reset failed", error))
             }

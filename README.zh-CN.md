@@ -9,7 +9,7 @@
 > [!IMPORTANT]
 > 修复和默认设置首先考虑维护者自己的 Android 7.1 车机。欢迎其他设备尝试，但不保证广泛兼容，也不承诺通用支持。
 
-[下载 r19](https://github.com/pinatsu/DiPlay-Android7/releases/tag/v0.2.15-android7-r19) · [报告问题](https://github.com/pinatsu/DiPlay-Android7/issues) · [DiPlay 上游](https://github.com/shihabal3amri/DiPlay)
+[下载 r20](https://github.com/pinatsu/DiPlay-Android7/releases/tag/v0.2.15-android7-r20) · [报告问题](https://github.com/pinatsu/DiPlay-Android7/issues) · [DiPlay 上游](https://github.com/shihabal3amri/DiPlay)
 
 ## 与上游版本的主要区别
 
@@ -53,10 +53,10 @@
 
 ## 与上游的关系
 
-r19 基于完整的 [DiPlay 上游 0.2.15](https://github.com/shihabal3amri/DiPlay/releases/tag/v0.2.15) 源码。上游已经支持 Android 7.1 / API 25，因此本分支不会把 API 25 支持本身描述成自己的新增功能。
+r20 基于完整的 [DiPlay 上游 0.2.15](https://github.com/shihabal3amri/DiPlay/releases/tag/v0.2.15) 源码。上游已经支持 Android 7.1 / API 25，因此本分支不会把 API 25 支持本身描述成自己的新增功能。
 
 界面、显示、无线、仪表、诊断和媒体等通用能力均跟随上游。本分支只维护上面列出的针对性差异；以后同步上游时也会按功能语义整合，而不是复制并长期分叉每一项上游功能。
 
-- [本分支 r19 发布说明](docs/RELEASE-NOTES-ANDROID7-R19.md)
+- [本分支 r20 发布说明](docs/RELEASE-NOTES-ANDROID7-R20.md)
 - [上游 0.2.15 发布说明](docs/RELEASE-NOTES-0.2.15.md)
 - [验证记录](docs/VALIDATION.md)

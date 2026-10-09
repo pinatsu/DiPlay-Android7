@@ -9,7 +9,7 @@ This fork keeps upstream DiPlay 0.2.15 and focuses on five differences that are 
 > [!IMPORTANT]
 > Fixes and defaults prioritize the maintainer's own Android 7.1 head unit. Other devices are welcome to try it, but broad compatibility and support are not guaranteed.
 
-[Download r19](https://github.com/pinatsu/DiPlay-Android7/releases/tag/v0.2.15-android7-r19) · [Report a problem](https://github.com/pinatsu/DiPlay-Android7/issues) · [Upstream DiPlay](https://github.com/shihabal3amri/DiPlay)
+[Download r20](https://github.com/pinatsu/DiPlay-Android7/releases/tag/v0.2.15-android7-r20) · [Report a problem](https://github.com/pinatsu/DiPlay-Android7/issues) · [Upstream DiPlay](https://github.com/shihabal3amri/DiPlay)
 
 ## Key differences from upstream
 
@@ -53,10 +53,10 @@ Only CarPlay's media track is adjusted; the head unit's global volume is not cha
 
 ## Relationship with upstream
 
-Release r19 is based on the complete upstream [DiPlay 0.2.15](https://github.com/shihabal3amri/DiPlay/releases/tag/v0.2.15) source. Upstream already supports Android 7.1 / API 25; this fork does not claim to add API 25 support itself.
+Release r20 is based on the complete upstream [DiPlay 0.2.15](https://github.com/shihabal3amri/DiPlay/releases/tag/v0.2.15) source. Upstream already supports Android 7.1 / API 25; this fork does not claim to add API 25 support itself.
 
 General interface, display, wireless, dashboard, diagnostics and media changes are kept from upstream. The fork maintains only the focused behavior above and integrates future upstream releases semantically instead of carrying a separate copy of every upstream feature.
 
-- [Fork r19 release notes](docs/RELEASE-NOTES-ANDROID7-R19.md)
+- [Fork r20 release notes](docs/RELEASE-NOTES-ANDROID7-R20.md)
 - [Upstream 0.2.15 release notes](docs/RELEASE-NOTES-0.2.15.md)
 - [Validation record](docs/VALIDATION.md)

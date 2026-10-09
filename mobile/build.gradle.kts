@@ -17,9 +17,9 @@ android {
         applicationId = "io.github.pinatsu.diplay.android7"
         minSdk = 25
         targetSdk = 37
-        // 34 = upstream 0.2.15 versionCode; 19 = this fork's internal revision.
-        versionCode = 3419
-        versionName = "0.2.15-android7-r19"
+        // 34 = upstream 0.2.15 versionCode; 20 = this fork's internal revision.
+        versionCode = 3420
+        versionName = "0.2.15-android7-r20"
 
     }
 

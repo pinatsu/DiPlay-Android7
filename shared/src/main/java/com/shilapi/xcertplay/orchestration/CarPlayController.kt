@@ -1873,7 +1873,7 @@ class CarPlayController(
     private fun beginUsbReset(device: UsbDevice) {
         phase = Phase.REENUMERATION
         usbResetAwaitingModeRequest.set(true)
-        reenumerationTimeoutGeneration.incrementAndGet()
+        val resetGeneration = reenumerationTimeoutGeneration.incrementAndGet()
         connectionDiagnostic("USB_RESET_BEGIN device=${device.deviceName}")
         onStatus(CarPlayStatus.WaitingForReenumeration)
         iphoneHost.resetUsbDeviceAsync(device, executor) { reset ->
@@ -1884,6 +1884,7 @@ class CarPlayController(
                     scheduleReenumerationTimeout(
                         "USB_RESET_DEVICE_DISCOVERY_TIMEOUT",
                         USB_RESET_DISCOVERY_TIMEOUT_MILLIS,
+                        resetGeneration,
                     )
                 }
                 is IphoneUsbHost.ResetResult.Failed -> {
@@ -1910,6 +1911,7 @@ class CarPlayController(
                 ) return
                 val device = iphoneHost.discover().firstOrNull()
                 if (device != null) {
+                    reenumerationTimeoutGeneration.incrementAndGet()
                     connectionDiagnostic("USB_RESET_REDISCOVERED device=${device.deviceName}")
                     requestIphonePermission(device)
                     return
@@ -1922,9 +1924,12 @@ class CarPlayController(
         mainHandler.postDelayed(poll, USB_RESET_SETTLE_MILLIS)
     }
 
-    private fun scheduleReenumerationTimeout(label: String, timeoutMillis: Long) {
+    private fun scheduleReenumerationTimeout(
+        label: String,
+        timeoutMillis: Long,
+        generation: Int = reenumerationTimeoutGeneration.incrementAndGet(),
+    ) {
         if (!config.forceWiredReenumeration) return
-        val generation = reenumerationTimeoutGeneration.incrementAndGet()
         mainHandler.postDelayed(
             {
                 if (!closed && phase == Phase.REENUMERATION &&
@@ -1946,6 +1951,9 @@ class CarPlayController(
         when (phase) {
             Phase.REENUMERATION, Phase.IPHONE -> {
                 availabilityPollGeneration.incrementAndGet()
+                if (phase == Phase.REENUMERATION) {
+                    reenumerationTimeoutGeneration.incrementAndGet()
+                }
                 requestIphonePermission(device)
             }
             else -> Unit
