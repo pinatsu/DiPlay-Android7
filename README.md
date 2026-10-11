@@ -1,5 +1,29 @@
+[**English**](README.md) | [简体中文](README.zh-CN.md)
+
+# DiPlay Android 7 custom fork
+
+This is a personal fork of [DiPlay](https://github.com/shihabal3amri/DiPlay), maintained primarily for the owner's Android 7.1 / API 25 head unit and wired CarPlay use.
+
+## Main customizations
+
+- Reconnect a wired session without repeatedly unplugging the iPhone when the head unit supports USB reset.
+- Detect a missing iPhone when vendor Android firmware omits the USB detach event.
+- Keep separate wired pairing records for multiple iPhones.
+- Use the target-compatible wired navigation audio format and optionally duck CarPlay music during navigation prompts.
+- Preserve the owner's vehicle name, vehicle icon and target-head-unit behavior.
+- Use an independent package, update channel and application data.
+
+## App identity
+
+- Package: `io.github.pinatsu.diplay.android7`
+- App name: `DiPlay`
+- Version format: `<upstream-version>-android7-r<N>`
+- Minimum Android version: Android 7.1 / API 25
+
 > [!IMPORTANT]
-> This repository is a customized Android 7.1 fork of [DiPlay](https://github.com/shihabal3amri/DiPlay), maintained for the owner's head unit. It uses the independent package `io.github.pinatsu.diplay.android7` and version format `<upstream-version>-android7-r<N>`. Fork-specific behavior and maintenance rules are documented in [the Android 7 fork contract](docs/ANDROID7_FORK_CONTRACT.md). The original upstream README is preserved below; its download links, package name and release information refer to upstream DiPlay.
+> This fork prioritizes the owner's head unit and does not promise compatibility with other vehicles, head units or Android versions. Wireless CarPlay follows upstream but remains experimental on the target Android 7.1 head unit.
+
+The complete upstream README is preserved below. Its download links, package name and release information refer to upstream DiPlay. Maintainer- and AI-facing requirements are recorded in the [Android 7 fork contract](docs/ANDROID7_FORK_CONTRACT.md).
 
 ---
 
