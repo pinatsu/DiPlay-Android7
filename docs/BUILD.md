@@ -128,7 +128,7 @@ DIPLAY_AUTH_ASSETS_DIR=/absolute/path/to/runtime-assets ./gradlew :mobile:assemb
 ```
 
 The task stops if either required file is absent or empty.
-Its APK output is `mobile/build/outputs/apk/debug/mobile-debug.apk`.
+Its APK output is `mobile/build/outputs/apk/debug/DiPlay-<versionName>.apk`.
 Check both files in the APK against your selected local inputs:
 
 - `assets/offline-mfi/identity.pk8`.
@@ -159,14 +159,14 @@ Run the release checks and build:
 ./gradlew :shared:testDebugUnitTest :common:testDebugUnitTest :mobile:lintRelease :mobile:assembleRelease
 ```
 
-The output is `mobile/build/outputs/apk/release/mobile-release.apk`.
+The output is `mobile/build/outputs/apk/release/DiPlay-<versionName>.apk`.
 The APK contains the runtime identity you supplied.
 Recipients can extract that identity from the APK.
 The APK excludes the Android signing key.
 See [the project notices](THIRD_PARTY_NOTICES.md) for the experimental identity used in public releases.
 
-Before publishing, rename the APK to `DiPlay-<versionName>.apk`, generate `SHA256SUMS.txt`
-for that exact file, and upload both assets to the same GitHub release. The in-app updater ignores a
+Before publishing, generate `SHA256SUMS.txt` for that exact APK and upload both assets to the
+same GitHub release. The in-app updater ignores a
 release that does not provide both the APK and its checksum file.
 
 The public source archive matches the release tag.
