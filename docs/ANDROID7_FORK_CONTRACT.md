@@ -196,6 +196,7 @@ Before a candidate becomes a release:
 
 - `ANDROID7_REAL_DEVICE_TEST_ZH.md` — device test procedure.
 - `CONNECTION_RELIABILITY.md` — connection evidence and remaining investigations.
-- `RELEASE-NOTES-ANDROID7-R19.md` and `RELEASE-NOTES-ANDROID7-R20.md` — historical releases.
+- `RELEASE-NOTES-ANDROID7-R19.md`, `RELEASE-NOTES-ANDROID7-R20.md` and
+  `RELEASE-NOTES-ANDROID7-R21.md` — fork release history.
 - `../../reference/DiPlay-Android7-上游同步与补丁迁移指南.md` — historical migration audit;
   useful background, but this contract takes precedence for the current fork.
