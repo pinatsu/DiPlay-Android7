@@ -146,6 +146,23 @@ internal fun isWirelessHandoffInProgress(
     sessionActive: Boolean,
 ): Boolean = handoffRequested || tunnelActive || sessionActive
 
+internal fun shouldForceWiredReenumeration(
+    configurationReady: Boolean,
+    resetRequested: Boolean,
+    reenumerationAttempts: Int,
+): Boolean = configurationReady && resetRequested && reenumerationAttempts == 0
+
+internal fun lockdownPairRecordRejection(error: Throwable): String? {
+    var cause: Throwable? = error
+    while (cause != null) {
+        val message = cause.message.orEmpty()
+        if (message.contains("InvalidPairRecord", ignoreCase = true)) return "InvalidPairRecord"
+        if (message.contains("InvalidHostID", ignoreCase = true)) return "InvalidHostID"
+        cause = cause.cause
+    }
+    return null
+}
+
 /**
  * Wires the complete wired or wireless CarPlay path: MFi coprocessor discovery, iPhone bring-up,
  * iAP2 control, transport setup, and the AirPlay media/input sessions.
@@ -162,9 +179,9 @@ class CarPlayController(
     listener: AirPlaySessionListener,
     private val media: AirPlayMediaHandler,
     reportStatus: (CarPlayStatus) -> Unit,
-    private val loadPairRecord: () -> LockdownPairRecord? = { null },
-    private val savePairRecord: (LockdownPairRecord) -> Unit = {},
-    private val clearPairRecord: () -> Unit = {},
+    private val loadPairRecord: (String) -> LockdownPairRecord? = { _ -> null },
+    private val savePairRecord: (String, LockdownPairRecord) -> Unit = { _, _ -> },
+    private val clearPairRecord: (String) -> Unit = {},
     private val locationProvider: Iap2LocationProvider? = null,
     private val vehicleStatusProvider: com.shilapi.xcertplay.transport.VehicleStatusProvider? = null,
 ) : Closeable {
@@ -2045,10 +2062,11 @@ class CarPlayController(
                 val rejection = rejectedPairRecordError(error)
                 if (savedPairRecord == null || rejection == null) throw error
                 debugLog("saved Lockdown pair record rejected by Lockdown error=$rejection; clearing and pairing again")
-                clearPairRecord()
-                pairRecord = pairNewRecord(pairingClient)
+                clearPairRecord(phoneIdentifier)
+                pairRecord = pairNewRecord(pairingClient, phoneIdentifier)
                 carKitClient.open(pairRecord, config.label)
             }
+            savePairRecord(phoneIdentifier, pairRecord)
             debugLog("wired com.apple.carkit.service stream opened")
             // Lab transport diagnostics: packet headers only, never certificate or challenge data.
             fun wireSummary(bytes: ByteArray): String {
@@ -2157,25 +2175,20 @@ class CarPlayController(
         }
     }
 
-    private fun pairNewRecord(client: LockdownPairingClient): LockdownPairRecord =
+    private fun pairNewRecord(
+        client: LockdownPairingClient,
+        phoneIdentifier: String,
+    ): LockdownPairRecord =
         client.pair(
             label = config.label,
             hostId = hostId,
             systemBuid = systemBuid,
             totalTimeoutMillis = PAIR_TIMEOUT_MILLIS,
             isCancelled = { closed },
-        ).pairRecord.also(savePairRecord)
+        ).pairRecord.also { savePairRecord(phoneIdentifier, it) }
 
-    private fun rejectedPairRecordError(error: Throwable): String? {
-        var cause: Throwable? = error
-        while (cause != null) {
-            val message = cause.message.orEmpty()
-            if (message.contains("InvalidPairRecord", ignoreCase = true)) return "InvalidPairRecord"
-            if (message.contains("InvalidHostID", ignoreCase = true)) return "InvalidHostID"
-            cause = cause.cause
-        }
-        return null
-    }
+    private fun rejectedPairRecordError(error: Throwable): String? =
+        lockdownPairRecordRejection(error)
 
     private fun isBluetoothHandoffCommand(type: String): Boolean =
         type.equals("disableBluetooth", ignoreCase = true) ||
@@ -2602,6 +2615,33 @@ class CarPlayController(
 
     private fun ByteArray.macString(): String =
         joinToString(":") { byte -> "%02x".format(byte.toInt() and 0xff) }
+
+    /** Android 7 head units may omit USB_DEVICE_DETACHED while leaving blocking reads asleep. */
+    private fun startWiredPresenceWatchdog(deviceName: String) {
+        val generation = wiredPresenceGeneration.incrementAndGet()
+        var consecutiveMisses = 0
+        val check = object : Runnable {
+            override fun run() {
+                if (closed || generation != wiredPresenceGeneration.get()) return
+                val present = runCatching {
+                    iphoneHost.discover().any { it.deviceName == deviceName }
+                }.getOrElse { error ->
+                    debugLog("wired iPhone presence check failed", error)
+                    true
+                }
+                consecutiveMisses = if (present) 0 else consecutiveMisses + 1
+                if (consecutiveMisses >= WIRED_DEVICE_MISSING_CHECKS) {
+                    wiredPresenceGeneration.incrementAndGet()
+                    debugLog("wired iPhone USB device disappeared; closing the active session")
+                    activeSession?.close()
+                    fail(IphoneUsbException.DeviceUnavailable("iPhone USB disconnected"))
+                    return
+                }
+                mainHandler.postDelayed(this, WIRED_DEVICE_PRESENCE_INTERVAL_MILLIS)
+            }
+        }
+        mainHandler.postDelayed(check, WIRED_DEVICE_PRESENCE_INTERVAL_MILLIS)
+    }
 
     private fun awaitVpnService(): CarPlayVpnService? {
         vpnService?.let { return it }

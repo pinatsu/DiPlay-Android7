@@ -15,6 +15,34 @@ import java.security.GeneralSecurityException
 class LockdownPairingClient(
     private val host: Iap2UsbMuxHost,
 ) {
+    /** Returns the stable identifier used to keep pairing records separate for each iPhone. */
+    @Throws(IphoneUsbException::class, LockdownPairingException::class)
+    fun deviceIdentifier(label: String): String {
+        require(label.isNotBlank()) { "label must not be blank" }
+        val connection = host.connect(
+            destinationPort = Iap2UsbMuxHost.LOCKDOWN_PORT,
+            timeoutMillis = MAXIMUM_STEP_TIMEOUT_MILLIS,
+        )
+        return LockdownPlistChannel(connection).use { channel ->
+            val value = channel.request(
+                LockdownPlistValue.Dictionary(
+                    linkedMapOf(
+                        "Label" to LockdownPlistValue.Text(label),
+                        "Request" to LockdownPlistValue.Text("GetValue"),
+                        "Key" to LockdownPlistValue.Text("UniqueDeviceID"),
+                    ),
+                ),
+                MAXIMUM_STEP_TIMEOUT_MILLIS,
+            )
+            value.errorCodeOrNull()?.let { throw LockdownPairingException.RemoteError(it) }
+            ((value.entries["Value"] as? LockdownPlistValue.Text)?.value)
+                ?.takeIf { it.isNotBlank() }
+                ?: throw LockdownPairingException.InvalidResponse(
+                    "UniqueDeviceID was missing or empty",
+                )
+        }
+    }
+
     /**
      * Fetches the two pairing inputs, generates the local record, and sends plaintext Pair.
      *
