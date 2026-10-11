@@ -119,3 +119,8 @@ tasks.register("assembleStandaloneDebug") {
     description = "Build a standalone car-test APK with explicitly provisioned authentication."
     dependsOn(verifyStandaloneAuthentication, "assembleDebug")
 }
+
+// A distributable release without the local accessory identity cannot start standalone CarPlay.
+tasks.matching { it.name == "preReleaseBuild" }.configureEach {
+    dependsOn(verifyStandaloneAuthentication)
+}
