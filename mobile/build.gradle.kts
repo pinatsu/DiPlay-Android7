@@ -3,6 +3,8 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
+val appVersionName = "0.2.17-android7-r21"
+
 // Optional local-only input. CI and ordinary source builds contain no accessory identity.
 val localAuthenticationAssets = providers.environmentVariable("DIPLAY_AUTH_ASSETS_DIR")
     .orNull?.let { file(it).canonicalFile }
@@ -17,9 +19,9 @@ android {
         applicationId = "io.github.pinatsu.diplay.android7"
         minSdk = 25
         targetSdk = 37
-        // 36 = upstream 0.2.17 versionCode; 21 = this fork's candidate revision.
+        // 36 = upstream 0.2.17 versionCode; 21 = this fork's release revision.
         versionCode = 3621
-        versionName = "0.2.17-android7-r21-candidate"
+        versionName = appVersionName
 
     }
 
@@ -39,10 +41,7 @@ android {
     }
 
     buildTypes {
-        debug {
-            applicationIdSuffix = ".hudtest"
-            versionNameSuffix = "-hud-test"
-        }
+        debug {}
         release {
             optimization {
                 enable = false
@@ -56,6 +55,14 @@ android {
     }
     buildFeatures {
         compose = true
+    }
+}
+
+androidComponents {
+    onVariants(selector().all()) { variant ->
+        variant.outputs.forEach { output ->
+            output.outputFileName.set("DiPlay-$appVersionName.apk")
+        }
     }
 }
 

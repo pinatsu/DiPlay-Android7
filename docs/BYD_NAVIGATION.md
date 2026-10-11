@@ -60,10 +60,10 @@ The exact Android 13 firmware `BYD-AUTO/IVI/IVI:13/TP1A.220624.014/eng.build2026
 - The iPhone sends one continuous 1920×720 map. DiPlay crops it at native scale into each viewport, centered horizontally and aligned to the bottom to retain the vehicle marker. Theme changes do not restart CarPlay. The side crop shows less surrounding map area than a separately negotiated portrait stream.
 - The two rendering surfaces remain alive when cards close. Window opacity controls visibility, and direct decoder surface handoffs preserve its video reference frames.
 
-Enable **Follow instrument theme and map card** to follow the stock cluster activities. Android Usage Access is required because BYD's theme API is signature-protected. This firmware has no working Usage Access settings page, so the owner must approve one-time ADB setup. For the HUD Test package:
+Enable **Follow instrument theme and map card** to follow the stock cluster activities. Android Usage Access is required because BYD's theme API is signature-protected. This firmware has no working Usage Access settings page, so the owner must approve one-time ADB setup. For this fork:
 
 ```sh
-adb shell appops set com.shihab.diplay.hudtest GET_USAGE_STATS allow
+adb shell appops set io.github.pinatsu.diplay.android7 GET_USAGE_STATS allow
 ```
 
 Open **Settings → BYD navigation → Automatic map setup · ADB** for the guided setup, available even when automatic mode is off. It shows the command for the installed package, offers a copy button, explains multiple-device ADB selection, and displays the current permission status. After running the command on your computer, tap **Check and enable** to verify permission and enable both the cluster map and automatic following. If permission is still missing, the guide stays open with instructions; an active CarPlay session reconnects once after successful setup. The copy button copies to the car clipboard, so the command is also displayed for typing on your computer. To revoke it, substitute `default` for `allow`. Without access or a recognized active theme, automatic mode hides the overlay. Manual mode remains available but cannot follow card visibility. If no current theme can be inferred after startup, select a different theme once to produce a fresh event.

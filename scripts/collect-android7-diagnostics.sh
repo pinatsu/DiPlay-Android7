@@ -6,7 +6,7 @@
 
 set -u
 
-PACKAGE="${DIPLAY_PACKAGE:-io.github.pinatsu.diplay.android7.hudtest}"
+PACKAGE="${DIPLAY_PACKAGE:-io.github.pinatsu.diplay.android7}"
 ACTIVITY="${DIPLAY_ACTIVITY:-com.shilapi.xcertplay.DiPlayActivity}"
 ADB_BIN="${ADB:-adb}"
 STAMP="$(date '+%Y%m%d-%H%M%S')"

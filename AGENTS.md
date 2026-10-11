@@ -4,6 +4,43 @@ Instructions for coding agents that work on DiPlay.
 
 - Conserve the user's token and tool budget: prioritize work with clear practical value, avoid low-value checks, builds, repetition, and over-analysis, and choose the simplest sufficient verification for the task.
 
+## Android 7 fork contract
+
+This repository is a maintained Android 7 fork, not a generic upstream checkout.
+Before changing connection, pairing, audio, packaging, branding or update behavior, read
+`docs/ANDROID7_FORK_CONTRACT.md`. That document is the authoritative list of fork behavior
+that an upstream sync must preserve or deliberately replace.
+
+Non-negotiable rules:
+
+- Preserve Android 7.1 / API 25 support and newer-Android behavior.
+- Preserve the independent application ID, settings namespace and fork update channel.
+- Preserve every accepted fork requirement unless the user explicitly removes it or an
+  upstream implementation is verified to provide equivalent behavior.
+- Keep each fork feature in its own commit. Do not mix an upstream sync, unrelated cleanup
+  and new fork behavior in one commit.
+- Prefer the current upstream implementation when it satisfies the same contract; do not
+  stack duplicate state machines merely to retain an old diff.
+- Do not commit authentication assets, signing material, APKs or private diagnostics.
+- Do not create a release commit, tag, push or GitHub release without explicit user approval.
+- A successful build, emulator run or tablet test is not Android 7 vehicle acceptance.
+
+### Release identity
+
+- The only application ID is `io.github.pinatsu.diplay.android7` for every build type.
+- The application name is `DiPlay`.
+- The version name format is `<upstream-version>-android7-r<N>`.
+- The APK filename is `DiPlay-<versionName>.apk`.
+- Do not create a separate test package or add `test`, `dev`, `candidate` or `api25`
+  suffixes to the application ID, version name or APK filename.
+- The APK tested on the tablet is the release artifact; do not rebuild or rename it after
+  it passes testing.
+- Increment both `versionCode` and `r<N>` before producing a replacement artifact.
+
+For upstream updates, record the disposition of every `Fxx` requirement as `preserved`,
+`replaced by upstream`, `rewritten`, `deferred` or `removed by user decision`. Verify the
+final fork tree and the relevant acceptance cases before changing the published version.
+
 ## Checks
 
 Run the CI command from `.github/workflows/android.yml` before you report a change as done:

@@ -70,11 +70,10 @@ For a source build without runtime authentication assets:
 Check that this file exists:
 
 ```text
-mobile/build/outputs/apk/debug/mobile-debug.apk
+mobile/build/outputs/apk/debug/DiPlay-0.2.17-android7-r21.apk
 ```
 
-The debug application ID is `io.github.pinatsu.diplay.android7.hudtest`.
-The release application ID is `io.github.pinatsu.diplay.android7`.
+Every build type uses the application ID `io.github.pinatsu.diplay.android7`.
 
 The source APK contains no accessory identity unless you supply runtime authentication assets.
 Standalone CarPlay needs these assets to connect to an iPhone.
