@@ -1814,6 +1814,7 @@ class CarPlayController(
     private fun startIphone() {
         diagnosticRun.incrementAndGet()
         availabilityPollGeneration.incrementAndGet()
+        wiredPresenceGeneration.incrementAndGet()
         phase = Phase.IPHONE
         reenumerationAttempts = 0
         onStatus(CarPlayStatus.DiscoveringIphone)
@@ -2097,7 +2098,7 @@ class CarPlayController(
                 is IphoneUsbHost.Iap2SessionResult.Connected -> {
                     try {
                         val ncm = openNcm(device)
-                        runStack(result.session, ncm)
+                        runStack(result.session, ncm, device.deviceName)
                     } catch (error: Throwable) {
                         result.session.close()
                         fail(error)
@@ -2126,7 +2127,7 @@ class CarPlayController(
         return NcmUsbBridge.open(connection, function, onDiagnostic = ::connectionDiagnostic)
     }
 
-    private fun runStack(usbSession: Iap2UsbSession, ncm: NcmUsbBridge) {
+    private fun runStack(usbSession: Iap2UsbSession, ncm: NcmUsbBridge, deviceName: String) {
         phase = Phase.CONTROL
         var ncmOwnedLocally = true
         try {
@@ -2134,10 +2135,13 @@ class CarPlayController(
             val mux = Iap2UsbMuxHost.open(usbSession, onDiagnostic = ::connectionDiagnostic)
             this.mux = mux
             debugLog("wired USBMUX host opened")
+            startWiredPresenceWatchdog(deviceName)
             onStatus(CarPlayStatus.Pairing)
             val pairingClient = LockdownPairingClient(mux)
-            val savedPairRecord = loadPairRecord()
-            var pairRecord = savedPairRecord ?: pairNewRecord(pairingClient)
+            val phoneIdentifier = pairingClient.deviceIdentifier(config.label)
+            debugLog("wired iPhone pairing identity resolved")
+            val savedPairRecord = loadPairRecord(phoneIdentifier)
+            var pairRecord = savedPairRecord ?: pairNewRecord(pairingClient, phoneIdentifier)
             debugLog(
                 if (savedPairRecord != null) {
                     "wired using saved Lockdown pair record"
