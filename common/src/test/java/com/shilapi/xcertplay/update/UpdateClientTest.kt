@@ -15,6 +15,14 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 
 class UpdateClientTest {
+    @Test
+    fun checksTheAndroid7ForkReleaseFeed() {
+        assertEquals(
+            "https://api.github.com/repos/pinatsu/DiPlay-Android7/releases?per_page=3",
+            UpdateClient.RELEASES_URL,
+        )
+    }
+
     @get:Rule
     val temporaryFolder = TemporaryFolder()
 

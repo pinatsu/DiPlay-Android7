@@ -14,11 +14,12 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.shihab.diplay"
+        applicationId = "io.github.pinatsu.diplay.android7"
         minSdk = 25
         targetSdk = 37
-        versionCode = 36
-        versionName = "0.2.17"
+        // 36 = upstream 0.2.17 versionCode; 21 = this fork's candidate revision.
+        versionCode = 3621
+        versionName = "0.2.17-android7-r21-candidate"
 
     }
 

@@ -33,6 +33,18 @@ class UpdateVersionTest {
     }
 
     @Test
+    fun android7RevisionBreaksTiesWithinTheSameUpstreamVersion() {
+        assertTrue(UpdateVersion.isNewer("v0.2.15-android7-r21", "0.2.15-android7-r20"))
+        assertFalse(UpdateVersion.isNewer("v0.2.15-android7-r20", "0.2.15-android7-r20"))
+        assertFalse(UpdateVersion.isNewer("v0.2.15-android7-r19", "0.2.15-android7-r20"))
+    }
+
+    @Test
+    fun forkRevisionDoesNotHideANewerUpstreamBase() {
+        assertTrue(UpdateVersion.isNewer("v0.2.16-android7-r1", "0.2.15-android7-r20"))
+    }
+
+    @Test
     fun unparseableRemoteVersionIsNeverAnUpdate() {
         assertFalse(UpdateVersion.isNewer("public-preview", "0.2.14"))
     }
