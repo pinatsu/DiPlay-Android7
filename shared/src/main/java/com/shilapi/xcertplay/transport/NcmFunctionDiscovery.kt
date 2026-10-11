@@ -26,6 +26,7 @@ object NcmFunctionDiscovery {
         val statusIn: UsbEndpoint?,
         val bulkIn: UsbEndpoint,
         val bulkOut: UsbEndpoint,
+        val idleData: UsbInterface? = null,
     )
 
     fun find(configuration: UsbConfiguration): NcmFunction? {
@@ -45,9 +46,13 @@ object NcmFunctionDiscovery {
             .map(control::getEndpoint)
             .singleOrNull {
                 it.direction == UsbConstants.USB_DIR_IN &&
-                    it.type == UsbConstants.USB_ENDPOINT_XFER_INT
+                it.type == UsbConstants.USB_ENDPOINT_XFER_INT
             }
-        return NcmFunction(control, data, statusIn, endpoints.first, endpoints.second)
+        val idle = interfaces(configuration).firstOrNull {
+            it.id == data.id && it.alternateSetting == 0 &&
+                it.interfaceClass == DATA_CLASS && it.endpointCount == 0
+        }
+        return NcmFunction(control, data, statusIn, endpoints.first, endpoints.second, idle)
     }
 
     private fun interfaces(configuration: UsbConfiguration): List<UsbInterface> =
