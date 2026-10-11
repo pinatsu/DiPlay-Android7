@@ -73,8 +73,8 @@ Check that this file exists:
 mobile/build/outputs/apk/debug/mobile-debug.apk
 ```
 
-The debug application ID is `com.shihab.diplay.hudtest`.
-The release application ID is `com.shihab.diplay`.
+The debug application ID is `io.github.pinatsu.diplay.android7.hudtest`.
+The release application ID is `io.github.pinatsu.diplay.android7`.
 
 The source APK contains no accessory identity unless you supply runtime authentication assets.
 Standalone CarPlay needs these assets to connect to an iPhone.
@@ -153,6 +153,7 @@ Set these environment variables locally:
 | `ANDROID_KEY_PASSWORD` | Signing key password |
 
 Keep the keystore and passwords outside Git.
+Release builds stop before packaging when `DIPLAY_AUTH_ASSETS_DIR` is unset or incomplete.
 Run the release checks and build:
 
 ```sh
@@ -164,6 +165,10 @@ The APK contains the runtime identity you supplied.
 Recipients can extract that identity from the APK.
 The APK excludes the Android signing key.
 See [the project notices](THIRD_PARTY_NOTICES.md) for the experimental identity used in public releases.
+
+Before publishing, rename the APK to `DiPlay-<versionName>.apk`, generate `SHA256SUMS.txt`
+for that exact file, and upload both assets to the same GitHub release. The in-app updater ignores a
+release that does not provide both the APK and its checksum file.
 
 The public source archive matches the release tag.
 It excludes runtime identities, signing keys, local configuration, and build output.

@@ -2,6 +2,8 @@
 
 Instructions for coding agents that work on DiPlay.
 
+- Conserve the user's token and tool budget: prioritize work with clear practical value, avoid low-value checks, builds, repetition, and over-analysis, and choose the simplest sufficient verification for the task.
+
 ## Checks
 
 Run the CI command from `.github/workflows/android.yml` before you report a change as done:
